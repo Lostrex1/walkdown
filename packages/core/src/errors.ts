@@ -1,0 +1,17 @@
+export type WalkdownErrorCode =
+  | "INVALID_ARGUMENT"
+  | "INVALID_CONFIG"
+  | "UNSUPPORTED_SCHEMA_VERSION"
+  | "FILESYSTEM_ERROR";
+
+export class WalkdownError extends Error {
+  public constructor(
+    public readonly code: WalkdownErrorCode,
+    message: string,
+    public readonly suggestion: string,
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = "WalkdownError";
+  }
+}

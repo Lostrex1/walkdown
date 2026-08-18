@@ -1,0 +1,13 @@
+{
+  "name": "walkdown",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "walkdown": "./dist/main.js"
+  },
+  "dependencies": {
+    "@walkdown/core": "file:../core",
+    "commander": "^14.0.0"
+  }
+}

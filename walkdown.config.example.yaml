@@ -1,0 +1,13 @@
+# Copy to walkdown.config.yaml and adjust for the application under test.
+schemaVersion: 1
+outputDir: .walkdown
+timeoutMs: 30000
+maxPages: 25
+maxDepth: 3
+include: []
+exclude: []
+allowedOrigins: []
+viewports:
+  - name: desktop
+    width: 1440
+    height: 900

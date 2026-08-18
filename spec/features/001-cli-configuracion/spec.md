@@ -1,6 +1,6 @@
 # 001 · Fundamentos del CLI y configuración
 
-**Estado:** propuesta
+**Estado:** implementado
 
 ## Qué hace
 
@@ -14,15 +14,15 @@ Todos los componentes posteriores dependen de contratos estables para configurac
 
 ## Criterios de aceptación
 
-- [ ] El paquete se instala y expone `walkdown --help` y `walkdown --version` en Node.js 22+.
-- [ ] `walkdown scan <url>` acepta HTTP/HTTPS y rechaza targets inválidos con mensaje, código de error estable y exit code de invocación.
-- [ ] La configuración YAML y los flags se validan, fusionan con precedencia documentada y pueden mostrarse redactados mediante `--print-config`.
-- [ ] Una clave desconocida o una versión de schema incompatible falla de forma explícita; no se ignora silenciosamente.
-- [ ] Cada ejecución crea de forma atómica `.walkdown/runs/<run-id>/run.json` con target normalizado, configuración efectiva, versión y timestamps.
-- [ ] Las señales `SIGINT` y `SIGTERM` dejan un run con estado `cancelled` y no un archivo parcialmente escrito.
-- [ ] Los exit codes distinguen: éxito, findings que incumplen política, scan incompleto y error de uso/infraestructura.
-- [ ] La salida respeta `NO_COLOR` y dispone de un modo silencioso/machine-readable sin logs mezclados en stdout.
-- [ ] Linux, Windows y macOS tienen tests de smoke del CLI y manejo correcto de rutas.
+- [x] El paquete se instala y expone `walkdown --help` y `walkdown --version` en Node.js 22+.
+- [x] `walkdown scan <url>` acepta HTTP/HTTPS y rechaza targets inválidos con mensaje, código de error estable y exit code de invocación.
+- [x] La configuración YAML y los flags se validan, fusionan con precedencia documentada y pueden mostrarse redactados mediante `--print-config`.
+- [x] Una clave desconocida o una versión de schema incompatible falla de forma explícita; no se ignora silenciosamente.
+- [x] Cada ejecución crea de forma atómica `.walkdown/runs/<run-id>/run.json` con target normalizado, configuración efectiva, versión y timestamps.
+- [x] Las señales `SIGINT` y `SIGTERM` dejan un run con estado `cancelled` y no un archivo parcialmente escrito.
+- [x] Los exit codes distinguen: éxito, findings que incumplen política, scan incompleto y error de uso/infraestructura.
+- [x] La salida respeta `NO_COLOR` y dispone de un modo silencioso/machine-readable sin logs mezclados en stdout.
+- [x] Linux, Windows y macOS tienen tests de smoke del CLI y manejo correcto de rutas.
 
 ## Fuera de alcance
 

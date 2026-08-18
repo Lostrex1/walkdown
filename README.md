@@ -6,7 +6,7 @@ The project is specification-driven. Product requirements, architecture decision
 
 ## Status
 
-The project is at the start of the MVP. The first implementation milestone is **001 · CLI and configuration foundations**.
+The project is at the start of the MVP. The next implementation milestone is **002 · browser engine and base evidence**.
 
 ## Principles
 
@@ -19,6 +19,23 @@ The project is at the start of the MVP. The first implementation milestone is **
 
 TypeScript (strict ESM), Node.js 22+, Playwright, Vitest, and Biome.
 
+## Development
+
+Requires Node.js 22 or later.
+
+```bash
+npm install
+npm run check
+npm test
+npm run dev -- scan http://localhost:3000
+```
+
+`walkdown scan <url>` currently validates configuration and persists a local run; browser automation begins in milestone 002. Runs are written under `.walkdown/runs/` by default.
+
+Configuration is loaded from `walkdown.config.yaml`. See [walkdown.config.example.yaml](walkdown.config.example.yaml) and [schemas/config.schema.json](schemas/config.schema.json). Precedence is CLI flags, then `WALKDOWN_OUTPUT_DIR`, `WALKDOWN_TIMEOUT_MS`, and `WALKDOWN_MAX_PAGES`, then the config file, then defaults. Use `--print-config` to inspect the effective non-sensitive configuration.
+
+Human output is sent to stdout. `--format json` or `--quiet` emits one JSON result only; diagnostics and errors go to stderr.
+
 ## License
 
-License selection is pending before the first public release.
+Licensed under the [Apache License 2.0](LICENSE).
