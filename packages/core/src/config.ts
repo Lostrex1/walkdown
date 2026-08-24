@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   type BrowserConfig,
   type EffectiveConfig,
+  type ExplorationConfig,
   SCHEMA_VERSION,
 } from "./contracts.js";
 import { WalkdownError } from "./errors.js";
@@ -30,6 +31,15 @@ const browserSchema = z
   })
   .strict()
   .default({});
+const explorationSchema = z
+  .object({
+    maxActions: z.number().int().nonnegative().max(10_000).default(100),
+    crawlTimeoutMs: z.number().int().positive().max(600_000).default(60_000),
+    maxQueryVariantsPerPath: z.number().int().positive().max(100).default(3),
+    allowExternalNavigation: z.boolean().default(false),
+  })
+  .strict()
+  .default({});
 
 const configSchema = z
   .object({
@@ -46,12 +56,16 @@ const configSchema = z
       .min(1)
       .default([{ name: "desktop", width: 1440, height: 900 }]),
     browser: browserSchema,
+    exploration: explorationSchema,
   })
   .strict();
 
 export type ConfigOverrides = Partial<
-  Omit<EffectiveConfig, "schemaVersion" | "browser">
-> & { browser?: Partial<BrowserConfig> };
+  Omit<EffectiveConfig, "schemaVersion" | "browser" | "exploration">
+> & {
+  browser?: Partial<BrowserConfig>;
+  exploration?: Partial<ExplorationConfig>;
+};
 
 function parseInteger(
   value: string | undefined,

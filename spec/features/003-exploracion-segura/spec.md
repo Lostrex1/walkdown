@@ -1,6 +1,6 @@
 # 003 · Exploración segura y grafo de la aplicación
 
-**Estado:** propuesta
+**Estado:** implementado
 
 ## Qué hace
 
@@ -14,18 +14,18 @@ Probar comportamiento sin tests escritos exige descubrir superficie real, pero u
 
 ## Criterios de aceptación
 
-- [ ] Descubre enlaces internos navegables desde el target hasta `maxPages`, `maxDepth` o timeout global.
-- [ ] Normaliza URLs, elimina fragments para identidad y aplica una política documentada a query params.
-- [ ] Respeta mismo origen, includes, excludes y navegación externa desactivada por defecto.
-- [ ] Inventaría links, buttons, inputs, selects, textareas, roles interactivos y elementos con indicios visuales de click.
-- [ ] Cada elemento tiene `ElementRef` portable con rol/nombre accesible/contexto, sin depender solo de CSS.
-- [ ] Clasifica acciones como `safe`, `reversible`, `side-effect`, `destructive`, `external` o `unknown` con razón auditable.
-- [ ] Solo ejecuta navegación GET y otras acciones `safe` en el modo predeterminado.
-- [ ] Textos/atributos relacionados con delete, pay, buy, send, publish, invite, logout y equivalentes se omiten conservadoramente.
-- [ ] Formularios, uploads, descargas y controles desconocidos no se activan por defecto.
-- [ ] El reporte incluye cobertura, rutas pendientes y acciones omitidas; alcanzar un presupuesto no se presenta como scan completo.
-- [ ] Loops, calendarios, paginaciones infinitas y URLs generadas no desbordan el presupuesto.
-- [ ] El crawler produce el mismo orden lógico con el mismo fixture y configuración.
+- [x] Descubre enlaces internos navegables desde el target hasta `maxPages`, `maxDepth` o timeout global.
+- [x] Normaliza URLs, elimina fragments para identidad y aplica una política documentada a query params.
+- [x] Respeta mismo origen, includes, excludes y navegación externa desactivada por defecto.
+- [x] Inventaría links, buttons, inputs, selects, textareas, roles interactivos y elementos con indicios visuales de click.
+- [x] Cada elemento tiene `ElementRef` portable con rol/nombre accesible/contexto, sin depender solo de CSS.
+- [x] Clasifica acciones como `safe`, `reversible`, `side-effect`, `destructive`, `external` o `unknown` con razón auditable.
+- [x] Solo ejecuta navegación GET y otras acciones `safe` en el modo predeterminado.
+- [x] Textos/atributos relacionados con delete, pay, buy, send, publish, invite, logout y equivalentes se omiten conservadoramente.
+- [x] Formularios, uploads, descargas y controles desconocidos no se activan por defecto.
+- [x] El reporte incluye cobertura, rutas pendientes y acciones omitidas; alcanzar un presupuesto no se presenta como scan completo.
+- [x] Loops, calendarios, paginaciones infinitas y URLs generadas no desbordan el presupuesto.
+- [x] El crawler produce el mismo orden lógico con el mismo fixture y configuración.
 
 ## Fuera de alcance
 

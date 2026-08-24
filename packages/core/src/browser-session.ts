@@ -12,6 +12,7 @@ import type {
   PageState,
 } from "./contracts.js";
 import { WalkdownError } from "./errors.js";
+import { exploreApplication } from "./safe-explorer.js";
 
 export interface BrowserSessionResult {
   observations: Observation[];
@@ -113,6 +114,13 @@ export async function runBrowserSession(options: {
     }
     const screenshot = await page.screenshot({ fullPage: true });
     await writer.writeBuffer("initial.png", "screenshot", screenshot);
+    const graph = await exploreApplication({
+      page,
+      target: options.target,
+      config: options.config,
+      signal: options.signal,
+    });
+    await writer.writeJson("app-graph.json", "app-graph", graph);
     await writer.writeJson("observations.json", "observations", observations);
   } finally {
     if (context) {

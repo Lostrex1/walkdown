@@ -6,7 +6,7 @@ The project is specification-driven. Product requirements, architecture decision
 
 ## Status
 
-The project is at the start of the MVP. The next implementation milestone is **003 · safe exploration and application graph**.
+The project is at the start of the MVP. The next implementation milestone is **004 · navigation and runtime checks**.
 
 ## Principles
 
@@ -37,6 +37,8 @@ Configuration is loaded from `walkdown.config.yaml`. See [walkdown.config.exampl
 Human output is sent to stdout. `--format json` or `--quiet` emits one JSON result only; diagnostics and errors go to stderr.
 
 Browser capture defaults to a 100 ms settle window and 10 MB maximum size per artifact. Configure these limits under `browser` in `walkdown.config.yaml`; oversized artifacts are omitted explicitly in the run manifest rather than silently truncated. Evidence paths in that manifest always use `/` relative to the run directory and sensitive token-like values are redacted before persistence.
+
+Walkdown explores with deterministic breadth-first traversal. It follows only same-origin GET links by default and saves `artifacts/app-graph.json` with coverage, pending routes and skipped actions. URLs lose fragments, tracking query parameters (`utm_*`, `fbclid`, `gclid`) and have their remaining query parameters sorted. Buttons, form controls, uploads, downloads, unknown controls, external links and actions matching protected vocabulary such as delete, pay, send, publish, invite or logout are never activated by default. Configure budgets under `exploration`; reaching one is reported as incomplete coverage, never as a complete scan.
 
 ## License
 

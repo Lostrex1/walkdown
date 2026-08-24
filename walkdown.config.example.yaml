@@ -15,3 +15,8 @@ browser:
   trace: true
   settleMs: 100
   maxArtifactBytes: 10000000
+exploration:
+  maxActions: 100
+  crawlTimeoutMs: 60000
+  maxQueryVariantsPerPath: 3
+  allowExternalNavigation: false

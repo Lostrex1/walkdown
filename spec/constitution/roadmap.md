@@ -6,14 +6,14 @@ El roadmap prioriza un vertical slice demostrable: explorar una aplicación real
 
 1. **001 · Fundamentos del CLI y configuración** — establece el paquete ejecutable, contratos públicos, configuración validada y lifecycle de un run.
 2. **002 · Motor de navegador y evidencia base** — abre Chromium, captura observaciones y cierra de forma fiable.
+3. **003 · Exploración segura y grafo de la aplicación** — descubre rutas y controles con presupuesto y clasificación de riesgo.
 
 ## Siguiente
 
-3. **003 · Exploración segura y grafo de la aplicación** — descubre rutas y controles con presupuesto y clasificación de riesgo.
+4. **004 · Checks de navegación y runtime** — detecta enlaces rotos/placeholders, excepciones, consola y requests fallidas.
 
 ## MVP — orden comprometido
 
-4. **004 · Checks de navegación y runtime** — detecta enlaces rotos/placeholders, excepciones, consola y requests fallidas.
 5. **005 · Checks de interacción, responsive y accesibilidad funcional** — encuentra controles muertos, tapados, overflow y fallos básicos de teclado.
 6. **006 · Findings, artefactos y outputs agent-native** — produce evidencia y contratos en terminal, JSON, JSONL, Markdown y SARIF.
 7. **007 · Baseline, verificación focalizada y regresión** — distingue deuda conocida, confirma arreglos y detecta reapariciones.

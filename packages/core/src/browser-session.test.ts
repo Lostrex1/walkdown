@@ -64,6 +64,28 @@ async function startFixture(): Promise<string> {
   return `http://127.0.0.1:${address.port}/`;
 }
 
+async function startExplorerFixture(): Promise<string> {
+  const server = createServer((request, response) => {
+    const title = request.url === "/safe" ? "Safe route" : "Explorer root";
+    response.writeHead(200, { "content-type": "text/html" });
+    response.end(`<!doctype html><title>${title}</title><main>
+      <a href="/safe?utm_source=test#fragment">Safe route</a>
+      <a href="https://example.com/external">External route</a>
+      <a href="/admin/delete">Delete account</a>
+      <a href="/download" download>Download export</a>
+      <button>Publish project</button>
+      <form><input name="email"><input type="file"><button type="submit">Send</button></form>
+      ${request.url === "/safe" ? '<a href="/deep">Deep route</a>' : ""}
+    </main>`);
+  });
+  servers.push(server);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string")
+    throw new Error("Fixture did not bind to TCP");
+  return `http://127.0.0.1:${address.port}/`;
+}
+
 describe("BrowserSession", () => {
   it("captures ordered runtime observations and reproducible evidence", async () => {
     const directory = await mkdtemp(join(tmpdir(), "walkdown-browser-"));
@@ -135,5 +157,72 @@ describe("BrowserSession", () => {
         signal: new AbortController().signal,
       }),
     ).rejects.toMatchObject({ code: "NAVIGATION_FAILED" });
+  }, 20_000);
+
+  it("builds a deterministic graph without activating unsafe controls", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "walkdown-explorer-"));
+    directories.push(directory);
+    const target = await startExplorerFixture();
+    const config = loadConfig({
+      cwd: directory,
+      cli: {
+        outputDir: directory,
+        maxDepth: 1,
+        exploration: { maxActions: 20, crawlTimeoutMs: 10_000 },
+      },
+    });
+    await runBrowserSession({
+      target,
+      runDirectory: directory,
+      config,
+      signal: new AbortController().signal,
+    });
+    const graph = JSON.parse(
+      await readFile(join(directory, "artifacts", "app-graph.json"), "utf8"),
+    );
+    expect(graph.routes.map((route: { url: string }) => route.url)).toEqual([
+      `${target}`,
+      `${target}safe`,
+    ]);
+    const rootActions = graph.routes[0].actions;
+    expect(rootActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          destination: `${target}safe`,
+          risk: "safe",
+          outcome: "queued",
+        }),
+        expect.objectContaining({ risk: "external", outcome: "skipped" }),
+        expect.objectContaining({ risk: "destructive", outcome: "skipped" }),
+      ]),
+    );
+    expect(
+      graph.routes.map((route: { url: string }) => route.url),
+    ).not.toContain(`${target}admin/delete`);
+    expect(graph.coverage).toMatchObject({
+      status: "incomplete",
+      stopReasons: expect.arrayContaining(["max-depth"]),
+    });
+    expect(rootActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "download", outcome: "skipped" }),
+        expect.objectContaining({ kind: "upload", outcome: "skipped" }),
+      ]),
+    );
+    const secondDirectory = await mkdtemp(join(tmpdir(), "walkdown-explorer-"));
+    directories.push(secondDirectory);
+    await runBrowserSession({
+      target,
+      runDirectory: secondDirectory,
+      config,
+      signal: new AbortController().signal,
+    });
+    const repeatedGraph = JSON.parse(
+      await readFile(
+        join(secondDirectory, "artifacts", "app-graph.json"),
+        "utf8",
+      ),
+    );
+    expect(repeatedGraph).toEqual(graph);
   }, 20_000);
 });

@@ -49,6 +49,24 @@
         },
         "userAgent": { "type": "string", "minLength": 1 }
       }
+    },
+    "exploration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxActions": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "crawlTimeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "maxQueryVariantsPerPath": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "allowExternalNavigation": { "type": "boolean" }
+      }
     }
   }
 }
