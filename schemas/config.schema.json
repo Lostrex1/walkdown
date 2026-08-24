@@ -67,6 +67,95 @@
         },
         "allowExternalNavigation": { "type": "boolean" }
       }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "placeholders": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "rules": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "navigation.placeholder-link": {
+              "$ref": "#/$defs/basicRule"
+            },
+            "navigation.broken-internal-link": {
+              "$ref": "#/$defs/urlRule"
+            },
+            "runtime.page-error": {
+              "$ref": "#/$defs/messageRule"
+            },
+            "runtime.console-error": {
+              "$ref": "#/$defs/messageRule"
+            },
+            "runtime.failed-request": {
+              "$ref": "#/$defs/requestRule"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "basicRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "severity": {
+          "enum": ["info", "warning", "error", "blocking"]
+        }
+      }
+    },
+    "messageRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "severity": {
+          "enum": ["info", "warning", "error", "blocking"]
+        },
+        "ignoreMessagePatterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "urlRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "severity": {
+          "enum": ["info", "warning", "error", "blocking"]
+        },
+        "ignoreUrlPatterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "requestRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "severity": {
+          "enum": ["info", "warning", "error", "blocking"]
+        },
+        "ignoreMessagePatterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "ignoreUrlPatterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
     }
   }
 }

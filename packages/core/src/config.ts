@@ -4,8 +4,12 @@ import { parse } from "yaml";
 import { z } from "zod";
 import {
   type BrowserConfig,
+  type ChecksConfig,
   type EffectiveConfig,
   type ExplorationConfig,
+  RULE_IDS,
+  type RuleConfig,
+  type RuleId,
   SCHEMA_VERSION,
 } from "./contracts.js";
 import { WalkdownError } from "./errors.js";
@@ -41,6 +45,95 @@ const explorationSchema = z
   .strict()
   .default({});
 
+const severitySchema = z.enum(["info", "warning", "error", "blocking"]);
+const baseRuleSchema = {
+  enabled: z.boolean().default(true),
+  severity: severitySchema,
+};
+const placeholderRuleSchema = z
+  .object({
+    ...baseRuleSchema,
+    severity: severitySchema.default("warning"),
+  })
+  .strict()
+  .default({});
+const brokenLinkRuleSchema = z
+  .object({
+    ...baseRuleSchema,
+    severity: severitySchema.default("error"),
+    ignoreUrlPatterns: z.array(z.string().min(1)).default([]),
+  })
+  .strict()
+  .default({});
+const pageErrorRuleSchema = z
+  .object({
+    ...baseRuleSchema,
+    severity: severitySchema.default("error"),
+    ignoreMessagePatterns: z.array(z.string().min(1)).default([]),
+  })
+  .strict()
+  .default({});
+const consoleErrorRuleSchema = z
+  .object({
+    ...baseRuleSchema,
+    severity: severitySchema.default("warning"),
+    ignoreMessagePatterns: z.array(z.string().min(1)).default([]),
+  })
+  .strict()
+  .default({});
+const failedRequestRuleSchema = z
+  .object({
+    ...baseRuleSchema,
+    severity: severitySchema.default("error"),
+    ignoreMessagePatterns: z.array(z.string().min(1)).default([]),
+    ignoreUrlPatterns: z.array(z.string().min(1)).default([]),
+  })
+  .strict()
+  .default({});
+const checksSchema = z
+  .object({
+    placeholders: z
+      .array(z.string())
+      .default(["", "#", "javascript:void(0)", "javascript:;"]),
+    rules: z
+      .object({
+        [RULE_IDS[0]]: placeholderRuleSchema,
+        [RULE_IDS[1]]: brokenLinkRuleSchema,
+        [RULE_IDS[2]]: pageErrorRuleSchema,
+        [RULE_IDS[3]]: consoleErrorRuleSchema,
+        [RULE_IDS[4]]: failedRequestRuleSchema,
+      })
+      .strict()
+      .default({}),
+  })
+  .strict()
+  .default({})
+  .transform(
+    (checks): ChecksConfig => ({
+      placeholders: checks.placeholders,
+      rules: Object.fromEntries(
+        RULE_IDS.map((id) => [
+          id,
+          {
+            enabled: checks.rules[id].enabled,
+            severity: checks.rules[id].severity,
+            ignoreMessagePatterns:
+              "ignoreMessagePatterns" in checks.rules[id]
+                ? checks.rules[id].ignoreMessagePatterns
+                : [],
+            ignoreUrlPatterns:
+              "ignoreUrlPatterns" in checks.rules[id]
+                ? checks.rules[id].ignoreUrlPatterns
+                : [],
+          },
+        ]),
+      ) as Record<
+        (typeof RULE_IDS)[number],
+        ChecksConfig["rules"][(typeof RULE_IDS)[number]]
+      >,
+    }),
+  );
+
 const configSchema = z
   .object({
     schemaVersion: z.literal(SCHEMA_VERSION).default(SCHEMA_VERSION),
@@ -57,14 +150,19 @@ const configSchema = z
       .default([{ name: "desktop", width: 1440, height: 900 }]),
     browser: browserSchema,
     exploration: explorationSchema,
+    checks: checksSchema,
   })
   .strict();
 
 export type ConfigOverrides = Partial<
-  Omit<EffectiveConfig, "schemaVersion" | "browser" | "exploration">
+  Omit<EffectiveConfig, "schemaVersion" | "browser" | "exploration" | "checks">
 > & {
   browser?: Partial<BrowserConfig>;
   exploration?: Partial<ExplorationConfig>;
+  checks?: {
+    placeholders?: string[];
+    rules?: { [Id in RuleId]?: Partial<RuleConfig> };
+  };
 };
 
 function parseInteger(

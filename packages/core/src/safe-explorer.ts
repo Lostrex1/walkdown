@@ -204,7 +204,7 @@ async function extractElements(
           "formaction",
         ].reduce<Record<string, string>>((result, name) => {
           const value = element.getAttribute(name);
-          if (value) result[name] = value;
+          if (value !== null) result[name] = value;
           return result;
         }, {});
         const href =
@@ -291,10 +291,34 @@ function classifyAction(
       risk: "unknown",
       reason: "form control is not activated by default",
     };
-  if (candidate.kind !== "navigate" || !candidate.href)
+  if (candidate.kind !== "navigate")
     return {
       risk: "unknown",
       reason: "non-navigation control is not activated by default",
+    };
+  const rawHref = candidate.element.attributes.href?.trim() ?? "";
+  if (
+    rawHref === "" ||
+    rawHref.startsWith("#") ||
+    /^javascript\s*:/i.test(rawHref)
+  )
+    return {
+      risk: "unknown",
+      reason: "placeholder navigation target is not activated",
+    };
+  if (!candidate.href)
+    return {
+      risk: "unknown",
+      reason: "navigation target is unavailable",
+    };
+  const parsedDestination = new URL(candidate.href);
+  if (
+    parsedDestination.protocol !== "http:" &&
+    parsedDestination.protocol !== "https:"
+  )
+    return {
+      risk: "external",
+      reason: `${parsedDestination.protocol} navigation is not checked`,
     };
   const destination = canonicalizeUrl(candidate.href);
   const origin = new URL(routeUrl).origin;

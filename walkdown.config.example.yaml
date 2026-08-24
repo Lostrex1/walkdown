@@ -20,3 +20,26 @@ exploration:
   crawlTimeoutMs: 60000
   maxQueryVariantsPerPath: 3
   allowExternalNavigation: false
+checks:
+  placeholders: ["", "#", "javascript:void(0)", "javascript:;"]
+  rules:
+    navigation.placeholder-link:
+      enabled: true
+      severity: warning
+    navigation.broken-internal-link:
+      enabled: true
+      severity: error
+      ignoreUrlPatterns: []
+    runtime.page-error:
+      enabled: true
+      severity: error
+      ignoreMessagePatterns: []
+    runtime.console-error:
+      enabled: true
+      severity: warning
+      ignoreMessagePatterns: []
+    runtime.failed-request:
+      enabled: true
+      severity: error
+      ignoreMessagePatterns: []
+      ignoreUrlPatterns: []

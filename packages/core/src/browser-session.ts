@@ -3,20 +3,26 @@ import {
   type BrowserContext,
   chromium,
   type Page,
+  type Request,
 } from "playwright";
 import { ArtifactWriter, redactText } from "./artifact-writer.js";
 import type {
   EffectiveConfig,
   EvidenceRef,
+  FindingsArtifact,
   Observation,
   PageState,
 } from "./contracts.js";
+import { SCHEMA_VERSION } from "./contracts.js";
 import { WalkdownError } from "./errors.js";
+import { classifyNetworkRequest } from "./network-classification.js";
+import { evaluateRules } from "./rules.js";
 import { exploreApplication } from "./safe-explorer.js";
 
 export interface BrowserSessionResult {
   observations: Observation[];
   evidence: EvidenceRef[];
+  findings: FindingsArtifact;
   pageState: PageState;
 }
 
@@ -50,6 +56,11 @@ export async function runBrowserSession(options: {
   let page: Page | undefined;
   let currentUrl = options.target;
   let pageState: PageState = { url: options.target, title: "" };
+  let findings: FindingsArtifact = {
+    schemaVersion: SCHEMA_VERSION,
+    target: options.target,
+    findings: [],
+  };
   const abort = () => {
     void context?.close();
   };
@@ -120,8 +131,15 @@ export async function runBrowserSession(options: {
       config: options.config,
       signal: options.signal,
     });
+    findings = evaluateRules({
+      target: options.target,
+      observations,
+      appGraph: graph,
+      config: options.config.checks,
+    });
     await writer.writeJson("app-graph.json", "app-graph", graph);
     await writer.writeJson("observations.json", "observations", observations);
+    await writer.writeJson("findings.json", "findings", findings);
   } finally {
     if (context) {
       try {
@@ -138,7 +156,7 @@ export async function runBrowserSession(options: {
     options.signal.removeEventListener("abort", abort);
     await writer.writeManifest(observations);
   }
-  return { observations, evidence: writer.evidence, pageState };
+  return { observations, evidence: writer.evidence, findings, pageState };
 }
 
 function installObservers(
@@ -150,34 +168,60 @@ function installObservers(
     observe("console", {
       level: message.type(),
       text: redactText(message.text()),
+      routeUrl: page.url(),
+      location: message.location(),
     }),
   );
   page.on("pageerror", (error) =>
-    observe("page-error", { message: redactText(error.message) }),
+    observe("page-error", {
+      message: redactText(error.message),
+      routeUrl: page.url(),
+      stack: error.stack ? redactText(error.stack) : undefined,
+    }),
   );
-  page.on("requestfailed", (request) =>
+  page.on("requestfailed", (request) => {
+    const error = redactText(request.failure()?.errorText ?? "unknown");
+    const classification = classifyNetworkRequest({
+      target,
+      url: request.url(),
+      resourceType: request.resourceType(),
+      navigation: request.isNavigationRequest(),
+      errorText: error,
+    });
     observe("request-failed", {
       method: request.method(),
-      resourceType: request.resourceType(),
       url: request.url(),
-      error: redactText(request.failure()?.errorText ?? "unknown"),
-    }),
-  );
-  page.on("response", (response) =>
+      error,
+      routeUrl: page.url(),
+      redirectChain: requestRedirectChain(request),
+      ...classification,
+      firstParty: classification.scope === "first-party",
+    });
+  });
+  page.on("response", (response) => {
+    const request = response.request();
+    const classification = classifyNetworkRequest({
+      target,
+      url: response.url(),
+      resourceType: request.resourceType(),
+      navigation: request.isNavigationRequest(),
+    });
     observe("response", {
       status: response.status(),
-      method: response.request().method(),
-      resourceType: response.request().resourceType(),
+      method: request.method(),
       url: response.url(),
-      firstParty: sameOrigin(target, response.url()),
-    }),
-  );
+      routeUrl: page.url(),
+      redirectChain: requestRedirectChain(request),
+      ...classification,
+      firstParty: classification.scope === "first-party",
+    });
+  });
   page.on("dialog", (dialog) => {
     observe("dialog", {
       type: dialog.type(),
       message: redactText(dialog.message()),
     });
-    void dialog.dismiss();
+    void dialog.dismiss().catch(() => undefined);
   });
   page.on("download", (download) =>
     observe("download", {
@@ -193,10 +237,12 @@ function installObservers(
   });
 }
 
-function sameOrigin(first: string, second: string): boolean {
-  try {
-    return new URL(first).origin === new URL(second).origin;
-  } catch {
-    return false;
+function requestRedirectChain(request: Request): string[] {
+  const chain: string[] = [];
+  let current: Request | null = request;
+  while (current) {
+    chain.unshift(current.url());
+    current = current.redirectedFrom();
   }
+  return chain;
 }

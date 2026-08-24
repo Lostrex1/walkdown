@@ -16,6 +16,36 @@ describe("configuration", () => {
       loadConfig({ cwd: ".", cli: { unexpected: true } as never }),
     ).toThrow(WalkdownError);
   });
+  it("loads rule defaults and validates rule-specific filters", () => {
+    const config = loadConfig({ cwd: "." });
+    expect(config.checks.rules["runtime.console-error"]).toMatchObject({
+      enabled: true,
+      severity: "warning",
+      ignoreMessagePatterns: [],
+    });
+    expect(() =>
+      loadConfig({
+        cwd: ".",
+        cli: {
+          checks: {
+            rules: {
+              "navigation.placeholder-link": {
+                ignoreMessagePatterns: ["not-valid-for-this-rule"],
+              },
+            },
+          },
+        } as never,
+      }),
+    ).toThrow("Invalid configuration");
+  });
+  it("loads the documented example configuration", () => {
+    expect(
+      loadConfig({
+        cwd: process.cwd(),
+        configPath: "walkdown.config.example.yaml",
+      }).checks.rules["navigation.broken-internal-link"],
+    ).toMatchObject({ enabled: true, severity: "error" });
+  });
   it("rejects a configuration schema newer than the supported contract", () => {
     expect(() =>
       loadConfig({ cwd: ".", cli: { schemaVersion: 2 } as never }),

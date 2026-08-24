@@ -28,6 +28,7 @@ export interface EffectiveConfig {
   viewports: Viewport[];
   browser: BrowserConfig;
   exploration: ExplorationConfig;
+  checks: ChecksConfig;
 }
 
 export interface ExplorationConfig {
@@ -42,6 +43,30 @@ export interface BrowserConfig {
   settleMs: number;
   maxArtifactBytes: number;
   userAgent?: string;
+}
+
+export type Severity = "info" | "warning" | "error" | "blocking";
+
+export const RULE_IDS = [
+  "navigation.placeholder-link",
+  "navigation.broken-internal-link",
+  "runtime.page-error",
+  "runtime.console-error",
+  "runtime.failed-request",
+] as const;
+
+export type RuleId = (typeof RULE_IDS)[number];
+
+export interface RuleConfig {
+  enabled: boolean;
+  severity: Severity;
+  ignoreMessagePatterns: string[];
+  ignoreUrlPatterns: string[];
+}
+
+export interface ChecksConfig {
+  placeholders: string[];
+  rules: Record<RuleId, RuleConfig>;
 }
 
 export type ObservationKind =
@@ -63,7 +88,13 @@ export interface Observation {
 }
 
 export interface EvidenceRef {
-  type: "screenshot" | "trace" | "accessibility" | "observations" | "app-graph";
+  type:
+    | "screenshot"
+    | "trace"
+    | "accessibility"
+    | "observations"
+    | "app-graph"
+    | "findings";
   path: string;
   bytes: number;
   truncated: boolean;
@@ -136,6 +167,56 @@ export interface AppGraph {
   target: string;
   routes: RouteNode[];
   coverage: CoverageSummary;
+}
+
+export interface RuleMetadata {
+  id: RuleId;
+  title: string;
+  description: string;
+  defaultSeverity: Severity;
+}
+
+export interface RuleContext {
+  target: string;
+  observations: readonly Observation[];
+  appGraph: AppGraph;
+  config: ChecksConfig;
+}
+
+export interface FindingSample {
+  sequence?: number;
+  atMs?: number;
+  data: Record<string, unknown>;
+}
+
+export interface FindingDraft {
+  ruleId: RuleId;
+  route: string;
+  cause: string;
+  message: string;
+  sample: FindingSample;
+}
+
+export interface Rule {
+  metadata: RuleMetadata;
+  evaluate(context: RuleContext): FindingDraft[];
+}
+
+export interface Finding {
+  id: string;
+  fingerprint: string;
+  ruleId: RuleId;
+  severity: Severity;
+  route: string;
+  message: string;
+  occurrenceCount: number;
+  samples: FindingSample[];
+}
+
+export interface FindingsArtifact {
+  schemaVersion: typeof SCHEMA_VERSION;
+  target: string;
+  findings: Finding[];
 }
 
 export interface Run {

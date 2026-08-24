@@ -86,6 +86,44 @@ async function startExplorerFixture(): Promise<string> {
   return `http://127.0.0.1:${address.port}/`;
 }
 
+async function startChecksFixture(): Promise<string> {
+  const server = createServer((request, response) => {
+    if (request.url === "/broken") {
+      response.writeHead(503, { "content-type": "text/html" });
+      response.end(
+        "<!doctype html><title>Broken</title><main>unavailable</main>",
+      );
+      return;
+    }
+    if (request.url === "/api/error") {
+      response.writeHead(503, { "content-type": "application/json" });
+      response.end('{"error":"unavailable"}');
+      return;
+    }
+    response.writeHead(200, { "content-type": "text/html" });
+    response.end(`<!doctype html><title>Checks fixture</title><main>
+      <a>No target</a>
+      <a href="">Empty</a>
+      <a href="#">Hash</a>
+      <a href="javascript:void(0)">No action</a>
+      <a href="/broken">Broken route</a>
+      <a href="mailto:hello@example.com">Email</a>
+      <a href="tel:+34123456789">Call</a>
+      <a href="/report.csv" download>Download</a>
+    </main><script>
+      console.error("fixture console error");
+      fetch("/api/error");
+      setTimeout(() => { throw new Error("fixture page error"); }, 0);
+    </script>`);
+  });
+  servers.push(server);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string")
+    throw new Error("Fixture did not bind to TCP");
+  return `http://127.0.0.1:${address.port}/`;
+}
+
 describe("BrowserSession", () => {
   it("captures ordered runtime observations and reproducible evidence", async () => {
     const directory = await mkdtemp(join(tmpdir(), "walkdown-browser-"));
@@ -224,5 +262,51 @@ describe("BrowserSession", () => {
       ),
     );
     expect(repeatedGraph).toEqual(graph);
+  }, 20_000);
+
+  it("evaluates navigation and runtime checks from captured evidence", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "walkdown-checks-"));
+    directories.push(directory);
+    const target = await startChecksFixture();
+    const config = loadConfig({
+      cwd: directory,
+      cli: {
+        outputDir: directory,
+        browser: { settleMs: 200 },
+        exploration: { maxActions: 20, crawlTimeoutMs: 10_000 },
+      },
+    });
+    const result = await runBrowserSession({
+      target,
+      runDirectory: directory,
+      config,
+      signal: new AbortController().signal,
+    });
+
+    expect(result.findings.findings.map((finding) => finding.ruleId)).toEqual(
+      expect.arrayContaining([
+        "navigation.placeholder-link",
+        "navigation.broken-internal-link",
+        "runtime.page-error",
+        "runtime.console-error",
+        "runtime.failed-request",
+      ]),
+    );
+    expect(JSON.stringify(result.findings)).not.toContain("mailto:");
+    expect(JSON.stringify(result.findings)).not.toContain("tel:");
+    expect(JSON.stringify(result.findings)).not.toContain("report.csv");
+    const persisted = JSON.parse(
+      await readFile(join(directory, "artifacts", "findings.json"), "utf8"),
+    );
+    expect(persisted).toEqual(result.findings);
+    const manifest = JSON.parse(
+      await readFile(join(directory, "artifacts", "manifest.json"), "utf8"),
+    );
+    expect(manifest.evidence).toContainEqual(
+      expect.objectContaining({
+        type: "findings",
+        path: "artifacts/findings.json",
+      }),
+    );
   }, 20_000);
 });
