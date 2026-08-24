@@ -1,5 +1,6 @@
 import { execFile as execFileCallback } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -62,18 +63,28 @@ describe("walkdown CLI", () => {
   it("writes a normalized, completed run in machine-readable mode", async () => {
     const directory = await mkdtemp(join(tmpdir(), "walkdown-cli-"));
     directories.push(directory);
-    const result = await execFile(process.execPath, [
-      cliPath,
-      "scan",
-      "https://example.com:443/path#fragment",
-      "--output-dir",
-      directory,
-      "--format",
-      "json",
-    ]);
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "content-type": "text/html" });
+      response.end("<title>Walkdown fixture</title><main>ready</main>");
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    const address = server.address();
+    if (address === null || typeof address === "string")
+      throw new Error("Fixture did not bind to TCP");
+    const target = `http://127.0.0.1:${address.port}/path#fragment`;
+    const result = await execFile(
+      process.execPath,
+      [cliPath, "scan", target, "--output-dir", directory, "--format", "json"],
+      { timeout: 20_000 },
+    );
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
     const run = JSON.parse(result.stdout);
     expect(run).toMatchObject({
-      target: "https://example.com/path",
+      target: target.replace("#fragment", ""),
       status: "completed",
       schemaVersion: 1,
     });

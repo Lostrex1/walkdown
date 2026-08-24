@@ -26,6 +26,45 @@ export interface EffectiveConfig {
   exclude: string[];
   allowedOrigins: string[];
   viewports: Viewport[];
+  browser: BrowserConfig;
+}
+
+export interface BrowserConfig {
+  trace: boolean;
+  settleMs: number;
+  maxArtifactBytes: number;
+  userAgent?: string;
+}
+
+export type ObservationKind =
+  | "navigation"
+  | "url-change"
+  | "console"
+  | "page-error"
+  | "request-failed"
+  | "response"
+  | "dialog"
+  | "download"
+  | "popup";
+
+export interface Observation {
+  sequence: number;
+  atMs: number;
+  kind: ObservationKind;
+  data: Record<string, unknown>;
+}
+
+export interface EvidenceRef {
+  type: "screenshot" | "trace" | "accessibility" | "observations";
+  path: string;
+  bytes: number;
+  truncated: boolean;
+}
+
+export interface PageState {
+  url: string;
+  title: string;
+  accessibilityPath?: string;
 }
 
 export interface Run {

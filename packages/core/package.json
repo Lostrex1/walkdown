@@ -6,6 +6,7 @@
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "dependencies": {
+    "playwright": "^1.55.0",
     "yaml": "^2.8.0",
     "zod": "^3.24.0"
   }

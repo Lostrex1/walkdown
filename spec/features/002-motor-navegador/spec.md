@@ -1,6 +1,6 @@
 # 002 · Motor de navegador y evidencia base
 
-**Estado:** propuesta
+**Estado:** implementado
 
 ## Qué hace
 
@@ -14,16 +14,16 @@ El valor de Walkdown depende de evidencia real. Centralizar la instrumentación 
 
 ## Criterios de aceptación
 
-- [ ] El CLI abre una URL disponible en Chromium con viewport y timeout configurados.
-- [ ] Una URL inaccesible, timeout de navegación o crash del navegador produce un error tipado y run `incomplete`, no un falso PASS.
-- [ ] Se capturan en orden errores de consola, page errors y requests fallidas desde antes de la navegación inicial.
-- [ ] Se registran status, método, tipo y URL de red sin persistir headers/cuerpos sensibles por defecto.
-- [ ] Se detectan dialog, download, popup y cambio de URL como observaciones estructuradas.
-- [ ] Se guardan screenshot inicial y trace reproducible dentro del directorio del run.
-- [ ] Las evidencias contienen rutas relativas y pasan por una política de redacción.
-- [ ] Browser, context, pages y trace se cierran en éxito, error, timeout y cancelación.
-- [ ] El mismo fixture produce observaciones semánticamente equivalentes en ejecuciones consecutivas.
-- [ ] El overhead de captura está acotado y los límites de tamaño de artefactos son configurables.
+- [x] El CLI abre una URL disponible en Chromium con viewport y timeout configurados.
+- [x] Una URL inaccesible, timeout de navegación o crash del navegador produce un error tipado y run `incomplete`, no un falso PASS.
+- [x] Se capturan en orden errores de consola, page errors y requests fallidas desde antes de la navegación inicial.
+- [x] Se registran status, método, tipo y URL de red sin persistir headers/cuerpos sensibles por defecto.
+- [x] Se detectan dialog, download, popup y cambio de URL como observaciones estructuradas.
+- [x] Se guardan screenshot inicial y trace reproducible dentro del directorio del run.
+- [x] Las evidencias contienen rutas relativas y pasan por una política de redacción.
+- [x] Browser, context, pages y trace se cierran en éxito, error, timeout y cancelación.
+- [x] El mismo fixture produce observaciones semánticamente equivalentes en ejecuciones consecutivas.
+- [x] El overhead de captura está acotado y los límites de tamaño de artefactos son configurables.
 
 ## Fuera de alcance
 

@@ -2,6 +2,8 @@ export type WalkdownErrorCode =
   | "INVALID_ARGUMENT"
   | "INVALID_CONFIG"
   | "UNSUPPORTED_SCHEMA_VERSION"
+  | "BROWSER_UNAVAILABLE"
+  | "NAVIGATION_FAILED"
   | "FILESYSTEM_ERROR";
 
 export class WalkdownError extends Error {

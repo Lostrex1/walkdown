@@ -3,6 +3,11 @@ import type { EffectiveConfig, Run, RunStatus } from "./contracts.js";
 import type { RunStore } from "./run-store.js";
 
 type FinalRunStatus = Exclude<RunStatus, "running">;
+export interface RunExecutionContext {
+  signal: AbortSignal;
+  run: Run;
+  filePath: string;
+}
 
 interface SignalSource {
   once(signal: "SIGINT" | "SIGTERM", listener: () => void): unknown;
@@ -13,7 +18,7 @@ export async function executeRun(
   store: RunStore,
   target: string,
   config: EffectiveConfig,
-  operation: (signal: AbortSignal) => Promise<FinalRunStatus>,
+  operation: (context: RunExecutionContext) => Promise<FinalRunStatus>,
   signalSource: SignalSource = process,
 ): Promise<{ run: Run; filePath: string }> {
   const created = await store.create(target, config);
@@ -27,7 +32,11 @@ export async function executeRun(
   signalSource.once("SIGTERM", cancel);
 
   try {
-    const status = await operation(controller.signal);
+    const status = await operation({
+      signal: controller.signal,
+      run: created.run,
+      filePath: created.filePath,
+    });
     const run = await store.finish(
       created.filePath,
       created.run,
@@ -35,7 +44,11 @@ export async function executeRun(
     );
     return { run, filePath: created.filePath };
   } catch (error) {
-    await store.finish(created.filePath, created.run, "incomplete");
+    await store.finish(
+      created.filePath,
+      created.run,
+      interrupted ? "cancelled" : "incomplete",
+    );
     throw error;
   } finally {
     signalSource.removeListener("SIGINT", cancel);

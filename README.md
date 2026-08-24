@@ -6,7 +6,7 @@ The project is specification-driven. Product requirements, architecture decision
 
 ## Status
 
-The project is at the start of the MVP. The next implementation milestone is **002 · browser engine and base evidence**.
+The project is at the start of the MVP. The next implementation milestone is **003 · safe exploration and application graph**.
 
 ## Principles
 
@@ -30,11 +30,13 @@ npm test
 npm run dev -- scan http://localhost:3000
 ```
 
-`walkdown scan <url>` currently validates configuration and persists a local run; browser automation begins in milestone 002. Runs are written under `.walkdown/runs/` by default.
+`walkdown scan <url>` opens the target in Chromium and persists a local run. It captures initial navigation, console and page errors, requests/responses, dialogs, downloads, popups, a screenshot, an accessibility snapshot and a trace. Runs are written under `.walkdown/runs/` by default. Chromium is never installed by the CLI: install it explicitly for local development with `npx playwright install chromium`.
 
 Configuration is loaded from `walkdown.config.yaml`. See [walkdown.config.example.yaml](walkdown.config.example.yaml) and [schemas/config.schema.json](schemas/config.schema.json). Precedence is CLI flags, then `WALKDOWN_OUTPUT_DIR`, `WALKDOWN_TIMEOUT_MS`, and `WALKDOWN_MAX_PAGES`, then the config file, then defaults. Use `--print-config` to inspect the effective non-sensitive configuration.
 
 Human output is sent to stdout. `--format json` or `--quiet` emits one JSON result only; diagnostics and errors go to stderr.
+
+Browser capture defaults to a 100 ms settle window and 10 MB maximum size per artifact. Configure these limits under `browser` in `walkdown.config.yaml`; oversized artifacts are omitted explicitly in the run manifest rather than silently truncated. Evidence paths in that manifest always use `/` relative to the run directory and sensitive token-like values are redacted before persistence.
 
 ## License
 

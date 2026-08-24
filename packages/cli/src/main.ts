@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { dirname } from "node:path";
 import process from "node:process";
 import {
   type ConfigOverrides,
@@ -7,6 +8,7 @@ import {
   loadConfig,
   normalizeTarget,
   RunStore,
+  runBrowserSession,
   WalkdownError,
 } from "@walkdown/core";
 import { Command } from "commander";
@@ -63,7 +65,15 @@ async function scan(targetInput: string, options: ScanOptions): Promise<void> {
     store,
     target,
     config,
-    async () => "completed",
+    async ({ filePath, signal }) => {
+      await runBrowserSession({
+        target,
+        runDirectory: dirname(filePath),
+        config,
+        signal,
+      });
+      return "completed";
+    },
   );
   if (format === "json" || options.quiet)
     process.stdout.write(`${JSON.stringify(result.run)}\n`);

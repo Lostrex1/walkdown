@@ -2,7 +2,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parse } from "yaml";
 import { z } from "zod";
-import { type EffectiveConfig, SCHEMA_VERSION } from "./contracts.js";
+import {
+  type BrowserConfig,
+  type EffectiveConfig,
+  SCHEMA_VERSION,
+} from "./contracts.js";
 import { WalkdownError } from "./errors.js";
 
 const viewportSchema = z
@@ -12,6 +16,20 @@ const viewportSchema = z
     height: z.number().int().positive(),
   })
   .strict();
+const browserSchema = z
+  .object({
+    trace: z.boolean().default(true),
+    settleMs: z.number().int().nonnegative().max(10_000).default(100),
+    maxArtifactBytes: z
+      .number()
+      .int()
+      .positive()
+      .max(100_000_000)
+      .default(10_000_000),
+    userAgent: z.string().min(1).optional(),
+  })
+  .strict()
+  .default({});
 
 const configSchema = z
   .object({
@@ -27,10 +45,13 @@ const configSchema = z
       .array(viewportSchema)
       .min(1)
       .default([{ name: "desktop", width: 1440, height: 900 }]),
+    browser: browserSchema,
   })
   .strict();
 
-export type ConfigOverrides = Partial<Omit<EffectiveConfig, "schemaVersion">>;
+export type ConfigOverrides = Partial<
+  Omit<EffectiveConfig, "schemaVersion" | "browser">
+> & { browser?: Partial<BrowserConfig> };
 
 function parseInteger(
   value: string | undefined,

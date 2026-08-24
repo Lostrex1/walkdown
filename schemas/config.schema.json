@@ -35,6 +35,20 @@
           "height": { "type": "integer", "minimum": 1 }
         }
       }
+    },
+    "browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "trace": { "type": "boolean" },
+        "settleMs": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "maxArtifactBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000000
+        },
+        "userAgent": { "type": "string", "minLength": 1 }
+      }
     }
   }
 }

@@ -28,7 +28,7 @@ describe("executeRun", () => {
       store,
       "http://localhost:3000/",
       config,
-      async (signal) => {
+      async ({ signal }) => {
         const aborted = new Promise<void>((resolve) =>
           signal.addEventListener("abort", () => resolve()),
         );
