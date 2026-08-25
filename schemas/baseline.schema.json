@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Lostrex1/walkdown/schemas/baseline.schema.json",
+  "title": "Walkdown Baseline v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "baselineVersion",
+    "target",
+    "createdAt",
+    "updatedAt",
+    "sourceRunId",
+    "fingerprintVersion",
+    "ruleVersions",
+    "entries",
+    "suppressions"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "baselineVersion": { "const": 1 },
+    "target": { "type": "string", "format": "uri" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "sourceRunId": { "type": "string", "minLength": 1 },
+    "fingerprintVersion": { "type": "integer", "minimum": 1 },
+    "ruleVersions": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fingerprint",
+          "fingerprintVersion",
+          "ruleId",
+          "ruleVersion",
+          "severity",
+          "route",
+          "source",
+          "status",
+          "firstSeenAt",
+          "lastSeenAt"
+        ],
+        "properties": {
+          "fingerprint": { "type": "string", "minLength": 1 },
+          "fingerprintVersion": { "type": "integer", "minimum": 1 },
+          "ruleId": { "type": "string", "minLength": 1 },
+          "ruleVersion": { "type": "string", "minLength": 1 },
+          "severity": { "enum": ["info", "warning", "error", "blocking"] },
+          "route": { "type": "string", "format": "uri" },
+          "source": { "$ref": "#/definitions/source" },
+          "status": { "enum": ["active", "fixed"] },
+          "firstSeenAt": { "type": "string", "format": "date-time" },
+          "lastSeenAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "suppressions": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/suppression" }
+    }
+  },
+  "definitions": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "providerVersion", "nativeId", "adapterVersion"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "providerVersion": { "type": "string", "minLength": 1 },
+        "nativeId": { "type": "string", "minLength": 1 },
+        "adapterVersion": { "type": "string", "minLength": 1 }
+      }
+    },
+    "suppression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fingerprint", "ruleId", "reason"],
+      "properties": {
+        "fingerprint": { "type": "string", "minLength": 1 },
+        "ruleId": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "author": { "type": "string", "minLength": 1 },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

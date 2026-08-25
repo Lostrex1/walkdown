@@ -1,0 +1,17 @@
+{
+  "unchanged": {
+    "fingerprint": "stable-fingerprint",
+    "message": "Original copy",
+    "route": "https://example.test/checkout"
+  },
+  "irrelevantChange": {
+    "fingerprint": "stable-fingerprint",
+    "message": "Reworded copy and different evidence",
+    "route": "https://example.test/checkout"
+  },
+  "relevantChange": {
+    "fingerprint": "changed-fingerprint",
+    "message": "Different observed cause",
+    "route": "https://example.test/checkout"
+  }
+}

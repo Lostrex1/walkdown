@@ -29,6 +29,12 @@ export interface EffectiveConfig {
   browser: BrowserConfig;
   exploration: ExplorationConfig;
   checks: ChecksConfig;
+  baseline: BaselinePolicyConfig;
+}
+
+export interface BaselinePolicyConfig {
+  path: string;
+  failOn: Severity[];
 }
 
 export interface ExplorationConfig {
@@ -277,6 +283,88 @@ export interface RepairContract {
 export interface VerificationRecipe {
   command: string;
   expectedOutcome: string;
+  executor?: {
+    provider: string;
+    version: string;
+  };
+  route?: string;
+  element?: Pick<ElementRef, "role" | "name" | "context">;
+  action?: Pick<CandidateAction, "kind" | "risk">;
+  assertion?: {
+    type: "finding-absent";
+    ruleId: string;
+    fingerprint: string;
+  };
+}
+
+export interface Suppression {
+  fingerprint: string;
+  ruleId: string;
+  reason: string;
+  author?: string;
+  expiresAt?: string;
+}
+
+export interface BaselineEntry {
+  fingerprint: string;
+  fingerprintVersion: number;
+  ruleId: string;
+  ruleVersion: string;
+  severity: Severity;
+  route: string;
+  source: FindingSource;
+  status: "active" | "fixed";
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+export interface Baseline {
+  schemaVersion: typeof SCHEMA_VERSION;
+  baselineVersion: 1;
+  target: string;
+  createdAt: string;
+  updatedAt: string;
+  sourceRunId: string;
+  fingerprintVersion: number;
+  ruleVersions: Record<string, string>;
+  entries: BaselineEntry[];
+  suppressions: Suppression[];
+}
+
+export interface FixedFindingRef {
+  fingerprint: string;
+  ruleId: string;
+  severity: Severity;
+  route: string;
+  source: FindingSource;
+}
+
+export interface MigrationNotice {
+  ruleId: string;
+  baselineVersion: string;
+  currentVersion: string;
+  reason: string;
+}
+
+export interface ComparisonResult {
+  baselineVersion: 1;
+  sourceRunId: string;
+  comparedAt: string;
+  counts: Record<
+    "new" | "persistent" | "fixed" | "regressed" | "ignored" | "inconclusive",
+    number
+  >;
+  fixed: FixedFindingRef[];
+  migrations: MigrationNotice[];
+  expiredSuppressions: Suppression[];
+  policy: {
+    failOn: Severity[];
+    failures: string[];
+  };
+  regression?: {
+    mode: "focused" | "full";
+    reason: string;
+  };
 }
 
 export interface PublishedFinding {
@@ -325,6 +413,21 @@ export interface RunResult {
   summary: RunSummary;
   findings: PublishedFinding[];
   evidence: PublishedEvidenceRef[];
+  comparison?: ComparisonResult;
+}
+
+export type VerificationOutcome = "pass" | "fail" | "inconclusive";
+
+export interface VerificationResult {
+  schemaVersion: typeof SCHEMA_VERSION;
+  fingerprint: string;
+  outcome: VerificationOutcome;
+  executor: { provider: string; version: string };
+  sourceRunId: string;
+  verificationRunId?: string;
+  route: string;
+  reason: string;
+  finding?: PublishedFinding;
 }
 
 export type InteractionOutcome = "pass" | "fail" | "inconclusive";

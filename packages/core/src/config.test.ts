@@ -24,6 +24,10 @@ describe("configuration", () => {
       ignoreMessagePatterns: [],
     });
     expect(config.checks.interaction.allowButtonClicks).toBe(false);
+    expect(config.baseline).toEqual({
+      path: "baseline.json",
+      failOn: ["error", "blocking"],
+    });
     expect(config.viewports.map((viewport) => viewport.name)).toEqual([
       "desktop",
       "mobile",

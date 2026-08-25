@@ -233,6 +233,7 @@ function config(): EffectiveConfig {
       maxQueryVariantsPerPath: 3,
       allowExternalNavigation: false,
     },
+    baseline: { path: "baseline.json", failOn: ["error", "blocking"] },
     checks: {
       placeholders: [],
       rules: Object.fromEntries(

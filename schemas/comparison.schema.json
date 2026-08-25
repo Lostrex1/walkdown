@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Lostrex1/walkdown/schemas/comparison.schema.json",
+  "title": "Walkdown ComparisonResult v1",
+  "type": "object",
+  "required": [
+    "baselineVersion",
+    "sourceRunId",
+    "comparedAt",
+    "counts",
+    "fixed",
+    "migrations",
+    "expiredSuppressions",
+    "policy"
+  ],
+  "properties": {
+    "baselineVersion": { "const": 1 },
+    "sourceRunId": { "type": "string", "minLength": 1 },
+    "comparedAt": { "type": "string", "format": "date-time" },
+    "counts": {
+      "type": "object",
+      "required": [
+        "new",
+        "persistent",
+        "fixed",
+        "regressed",
+        "ignored",
+        "inconclusive"
+      ],
+      "properties": {
+        "new": { "type": "integer", "minimum": 0 },
+        "persistent": { "type": "integer", "minimum": 0 },
+        "fixed": { "type": "integer", "minimum": 0 },
+        "regressed": { "type": "integer", "minimum": 0 },
+        "ignored": { "type": "integer", "minimum": 0 },
+        "inconclusive": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "fixed": { "type": "array", "items": { "type": "object" } },
+    "migrations": { "type": "array", "items": { "type": "object" } },
+    "expiredSuppressions": { "type": "array", "items": { "type": "object" } },
+    "policy": {
+      "type": "object",
+      "required": ["failOn", "failures"],
+      "properties": {
+        "failOn": {
+          "type": "array",
+          "items": { "enum": ["info", "warning", "error", "blocking"] }
+        },
+        "failures": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "regression": { "type": "object" }
+  }
+}

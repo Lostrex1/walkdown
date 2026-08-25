@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Lostrex1/walkdown/schemas/verification.schema.json",
+  "title": "Walkdown VerificationResult v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "fingerprint",
+    "outcome",
+    "executor",
+    "sourceRunId",
+    "route",
+    "reason"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "fingerprint": { "type": "string", "minLength": 1 },
+    "outcome": { "enum": ["pass", "fail", "inconclusive"] },
+    "executor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "version"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "sourceRunId": { "type": "string", "minLength": 1 },
+    "verificationRunId": { "type": "string", "minLength": 1 },
+    "route": { "type": "string", "format": "uri" },
+    "reason": { "type": "string", "minLength": 1 },
+    "finding": { "type": "object" }
+  }
+}

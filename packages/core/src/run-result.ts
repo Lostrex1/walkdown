@@ -263,8 +263,19 @@ function publishFinding(
     },
     expectedOutcome: details.expectedOutcome,
     verification: {
-      command: `walkdown scan ${finding.route} --format json`,
+      command: `walkdown verify ${finding.fingerprint}`,
       expectedOutcome: `No active finding with fingerprint ${finding.fingerprint}.`,
+      executor: { provider: "walkdown", version: "1" },
+      route: finding.route,
+      element: element
+        ? { role: element.role, name: element.name, context: element.context }
+        : undefined,
+      action: action ? { kind: action.kind, risk: action.risk } : undefined,
+      assertion: {
+        type: "finding-absent",
+        ruleId: finding.ruleId,
+        fingerprint: finding.fingerprint,
+      },
     },
   };
 }

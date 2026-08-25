@@ -6,7 +6,7 @@ The project is specification-driven. Product requirements, architecture decision
 
 ## Status
 
-The project has implemented **006 · findings, artifacts, and agent-native outputs**. The next implementation milestone is **007 · baseline, focused verification, and regression**.
+The project has implemented **007 · baseline, focused verification, and regression**. The final MVP implementation milestone is **008 · GitHub Action and pull-request experience**.
 
 ## Principles
 
@@ -43,6 +43,8 @@ Walkdown explores with deterministic breadth-first traversal. It follows only sa
 After exploration, Walkdown evaluates deterministic navigation and runtime checks and saves `artifacts/findings.json`. Built-in rules cover placeholder links, broken internal destinations and redirect loops, page exceptions, console errors, and failed first-party requests. Known noise can be filtered without deleting the underlying evidence. See [Navigation and runtime checks](docs/checks.md) for rule IDs, defaults, and valid configuration.
 
 Walkdown also probes authorized safe controls in isolated pages, compares normalized before/after state, measures every configured viewport, performs center-point hit testing, inventories accessible names, traverses focus with real Tab events, and checks modal focus behavior. Generic button clicks require explicit permission and uncertain attempts remain evidence without becoming failures. See [Interaction, responsive, and functional accessibility checks](docs/behavior-checks.md) for effect semantics, rule IDs, safety policy, and configuration.
+
+Reviewed debt can be stored explicitly with `walkdown baseline`. Later scans classify findings as new, persistent, regressed, ignored, or inconclusive and report fixed baseline entries separately. `walkdown verify <fingerprint>` re-observes one finding with a semantic recipe and tri-state result; `walkdown regression` applies the baseline policy with a conservative full-scan fallback. See [Baseline, verification, and regression](docs/baseline-and-verification.md).
 
 ## License
 

@@ -59,7 +59,8 @@
     "evidence": {
       "type": "array",
       "items": { "$ref": "#/definitions/evidence" }
-    }
+    },
+    "comparison": { "type": "object" }
   },
   "definitions": {
     "coverage": {
@@ -206,7 +207,29 @@
           "required": ["command", "expectedOutcome"],
           "properties": {
             "command": { "type": "string", "minLength": 1 },
-            "expectedOutcome": { "type": "string", "minLength": 1 }
+            "expectedOutcome": { "type": "string", "minLength": 1 },
+            "executor": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["provider", "version"],
+              "properties": {
+                "provider": { "type": "string", "minLength": 1 },
+                "version": { "type": "string", "minLength": 1 }
+              }
+            },
+            "route": { "type": "string", "format": "uri" },
+            "element": { "type": "object" },
+            "action": { "type": "object" },
+            "assertion": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "ruleId", "fingerprint"],
+              "properties": {
+                "type": { "const": "finding-absent" },
+                "ruleId": { "type": "string", "minLength": 1 },
+                "fingerprint": { "type": "string", "minLength": 1 }
+              }
+            }
           }
         }
       }

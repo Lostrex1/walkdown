@@ -8,9 +8,20 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const execFile = promisify(execFileCallback);
 const directories: string[] = [];
+const servers: ReturnType<typeof createServer>[] = [];
 const cliPath = resolve("packages/cli/dist/main.js");
 
 afterEach(async () => {
+  await Promise.all(
+    servers
+      .splice(0)
+      .map(
+        (server) =>
+          new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve())),
+          ),
+      ),
+  );
   await Promise.all(
     directories
       .splice(0)
@@ -23,6 +34,9 @@ describe("walkdown CLI", () => {
     const help = await execFile(process.execPath, [cliPath, "--help"]);
     const version = await execFile(process.execPath, [cliPath, "--version"]);
     expect(help.stdout).toContain("scan [options] <url>");
+    expect(help.stdout).toContain("baseline");
+    expect(help.stdout).toContain("verify");
+    expect(help.stdout).toContain("regression");
     expect(version.stdout.trim()).toBe("0.1.0");
   });
 
@@ -111,4 +125,116 @@ describe("walkdown CLI", () => {
       ),
     ).resolves.toContain("# Walkdown: PASS");
   }, 20_000);
+
+  it("accepts persistent debt, verifies one finding, and runs regression", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "walkdown-cli-"));
+    directories.push(directory);
+    const server = createServer((request, response) => {
+      if (request.url === "/error") {
+        response.writeHead(503, { "content-type": "text/plain" });
+        response.end("unavailable");
+        return;
+      }
+      response.writeHead(200, { "content-type": "text/html" });
+      response.end(
+        '<!doctype html><title>Baseline fixture</title><main>ready</main><script>fetch("/error")</script>',
+      );
+    });
+    servers.push(server);
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    const address = server.address();
+    if (address === null || typeof address === "string")
+      throw new Error("Fixture did not bind to TCP");
+    const target = `http://127.0.0.1:${address.port}/`;
+    const first = await execAllowFailure([
+      cliPath,
+      "scan",
+      target,
+      "--output-dir",
+      directory,
+      "--format",
+      "json",
+    ]);
+    expect(first.code).toBe(1);
+    const firstResult = JSON.parse(first.stdout);
+    const fingerprint = firstResult.findings.find(
+      (finding: { ruleId: string }) =>
+        finding.ruleId === "runtime.failed-request",
+    )?.fingerprint;
+    expect(fingerprint).toEqual(expect.any(String));
+
+    const accepted = await execFile(process.execPath, [
+      cliPath,
+      "baseline",
+      "--output-dir",
+      directory,
+      "--format",
+      "json",
+    ]);
+    expect(JSON.parse(accepted.stdout)).toMatchObject({
+      baselineVersion: 1,
+      target,
+    });
+
+    const repeated = await execFile(
+      process.execPath,
+      [cliPath, "scan", target, "--output-dir", directory, "--format", "json"],
+      { timeout: 20_000 },
+    );
+    const repeatedResult = JSON.parse(repeated.stdout);
+    expect(repeatedResult.summary.verdict).toBe("pass");
+    expect(
+      repeatedResult.findings.find(
+        (finding: { fingerprint: string }) =>
+          finding.fingerprint === fingerprint,
+      )?.state,
+    ).toBe("persistent");
+
+    const verification = await execAllowFailure([
+      cliPath,
+      "verify",
+      fingerprint,
+      "--output-dir",
+      directory,
+      "--format",
+      "json",
+    ]);
+    expect(verification.code).toBe(1);
+    expect(JSON.parse(verification.stdout)).toMatchObject({
+      fingerprint,
+      outcome: "fail",
+      executor: { provider: "walkdown" },
+    });
+
+    const regression = await execFile(
+      process.execPath,
+      [cliPath, "regression", "--output-dir", directory, "--format", "json"],
+      { timeout: 20_000 },
+    );
+    expect(JSON.parse(regression.stdout)).toMatchObject({
+      summary: { verdict: "pass" },
+      comparison: {
+        regression: { mode: "full" },
+        counts: { persistent: expect.any(Number) },
+      },
+    });
+  }, 30_000);
 });
+
+async function execAllowFailure(
+  args: string[],
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  try {
+    const result = await execFile(process.execPath, args, { timeout: 20_000 });
+    return { code: 0, stdout: result.stdout, stderr: result.stderr };
+  } catch (error) {
+    const failed = error as { code?: number; stdout?: string; stderr?: string };
+    return {
+      code: failed.code ?? -1,
+      stdout: failed.stdout ?? "",
+      stderr: failed.stderr ?? "",
+    };
+  }
+}

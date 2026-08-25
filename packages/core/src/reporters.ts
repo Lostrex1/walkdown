@@ -58,6 +58,7 @@ export function renderJsonl(result: RunResult): string {
       type: "summary",
       summary: result.summary,
       evidence: result.evidence,
+      comparison: result.comparison,
     },
   ];
   return `${events.map((event) => JSON.stringify(event)).join("\n")}\n`;
@@ -75,12 +76,20 @@ export function renderTerminal(
   ];
   if (result.coverage.stopReasons.length > 0)
     lines.push(`Coverage limits: ${result.coverage.stopReasons.join(", ")}`);
+  if (result.comparison)
+    lines.push(
+      `Delta: new=${result.comparison.counts.new}, regressed=${result.comparison.counts.regressed}, persistent=${result.comparison.counts.persistent}, fixed=${result.comparison.counts.fixed}, ignored=${result.comparison.counts.ignored}`,
+    );
+  for (const migration of result.comparison?.migrations ?? [])
+    lines.push(
+      `Migration required: ${migration.ruleId} ${migration.baselineVersion} -> ${migration.currentVersion}`,
+    );
   const visible = options.verbose
     ? result.findings
     : result.findings.slice(0, 10);
   for (const finding of visible)
     lines.push(
-      `- ${paint.severity(`[${finding.severity}]`, finding.severity)} ${finding.ruleId} — ${finding.message} (${finding.route})`,
+      `- ${paint.severity(`[${finding.severity}/${finding.state}]`, finding.severity)} ${finding.ruleId} — ${finding.message} (${finding.route})`,
     );
   if (!options.verbose && result.findings.length > visible.length)
     lines.push(
@@ -107,13 +116,21 @@ export function renderMarkdown(result: RunResult): string {
     "",
     `Visited ${result.coverage.visitedPages} of ${result.coverage.discoveredPages} discovered pages. Coverage is **${result.coverage.status}**.`,
     "",
+    ...(result.comparison
+      ? [
+          "## Baseline delta",
+          "",
+          `New: ${result.comparison.counts.new} · Regressed: ${result.comparison.counts.regressed} · Persistent: ${result.comparison.counts.persistent} · Fixed: ${result.comparison.counts.fixed} · Ignored: ${result.comparison.counts.ignored}`,
+          "",
+        ]
+      : []),
     "## Findings",
     "",
   ];
   if (result.findings.length === 0) lines.push("No findings.", "");
   for (const finding of result.findings) {
     lines.push(
-      `### ${finding.severity.toUpperCase()}: ${escapeMarkdown(finding.ruleId)}`,
+      `### ${finding.severity.toUpperCase()} · ${finding.state.toUpperCase()}: ${escapeMarkdown(finding.ruleId)}`,
       "",
       `${escapeMarkdown(finding.message)} Route: \`${escapeMarkdown(finding.route)}\``,
       "",
@@ -190,6 +207,7 @@ export function toSarif(result: RunResult): Record<string, unknown> {
               target: result.target,
               coverage: result.coverage,
               verdict: result.summary.verdict,
+              comparison: result.comparison,
             },
           },
         ],
@@ -205,6 +223,10 @@ export function renderAgentPrompt(result: RunResult): string {
     `Run ${result.run.runId} for ${result.target}: ${result.summary.verdict}; ${result.summary.findingCount} findings.`,
     "Preserve user behavior, do not disable checks, and verify every change against the finding acceptance criteria.",
   ];
+  if (result.comparison)
+    lines.push(
+      `Baseline delta: ${result.comparison.counts.new} new, ${result.comparison.counts.regressed} regressed, ${result.comparison.counts.persistent} persistent, ${result.comparison.counts.fixed} fixed.`,
+    );
   for (const finding of result.findings)
     lines.push(
       `- ${finding.id}: ${finding.message} Objective: ${finding.repair.objective} Verify: ${finding.verification.command}`,

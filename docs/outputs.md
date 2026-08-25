@@ -17,6 +17,8 @@ The contract deliberately separates:
 
 Evidence paths use `/` and are relative to the run directory. An artifact that could not be retained is represented with `status: "omitted"` or `"truncated"` and a reason.
 
+When a baseline is applied, the same result can include `comparison`: deterministic state counts, fixed identities, migrations, expired suppressions, policy failures, and regression fallback metadata. Active findings carry their comparison state; the canonical evidence and detection message remain unchanged.
+
 ## CLI formats
 
 ```text

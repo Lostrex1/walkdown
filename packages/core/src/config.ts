@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { parse } from "yaml";
 import { z } from "zod";
 import {
+  type BaselinePolicyConfig,
   type BrowserConfig,
   type ChecksConfig,
   type EffectiveConfig,
@@ -182,6 +183,14 @@ const checksSchema = z
     }),
   );
 
+const baselineSchema = z
+  .object({
+    path: z.string().min(1).default("baseline.json"),
+    failOn: z.array(severitySchema).min(1).default(["error", "blocking"]),
+  })
+  .strict()
+  .default({});
+
 const configSchema = z
   .object({
     schemaVersion: z.literal(SCHEMA_VERSION).default(SCHEMA_VERSION),
@@ -202,6 +211,7 @@ const configSchema = z
     browser: browserSchema,
     exploration: explorationSchema,
     checks: checksSchema,
+    baseline: baselineSchema,
   })
   .strict();
 
@@ -215,6 +225,7 @@ export type ConfigOverrides = Partial<
     rules?: { [Id in RuleId]?: Partial<RuleConfig> };
     interaction?: Partial<InteractionProbeConfig>;
   };
+  baseline?: Partial<BaselinePolicyConfig>;
 };
 
 function parseInteger(

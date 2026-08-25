@@ -23,6 +23,9 @@ exploration:
   crawlTimeoutMs: 60000
   maxQueryVariantsPerPath: 3
   allowExternalNavigation: false
+baseline:
+  path: baseline.json
+  failOn: [error, blocking]
 checks:
   placeholders: ["", "#", "javascript:void(0)", "javascript:;"]
   rules:
