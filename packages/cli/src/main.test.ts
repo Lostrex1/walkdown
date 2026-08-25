@@ -93,5 +93,5 @@ describe("walkdown CLI", () => {
         await readFile(join(directory, "runs", run.runId, "run.json"), "utf8"),
       ),
     ).toMatchObject(run);
-  });
+  }, 20_000);
 });

@@ -1,5 +1,7 @@
 # Navigation and runtime checks
 
+For active interaction, responsive, keyboard, and modal rules, see [Interaction, responsive, and functional accessibility checks](behavior-checks.md).
+
 Walkdown evaluates built-in checks from the observations and application graph already captured during a scan. Rules are pure: they do not navigate, write artifacts, or print output. The browser session writes their versioned result to `artifacts/findings.json` and keeps the source observations unchanged in `artifacts/observations.json`.
 
 ## Built-in rules

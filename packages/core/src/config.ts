@@ -7,6 +7,7 @@ import {
   type ChecksConfig,
   type EffectiveConfig,
   type ExplorationConfig,
+  type InteractionProbeConfig,
   RULE_IDS,
   type RuleConfig,
   type RuleId,
@@ -90,6 +91,44 @@ const failedRequestRuleSchema = z
   })
   .strict()
   .default({});
+const deadControlRuleSchema = z
+  .object({
+    ...baseRuleSchema,
+    severity: severitySchema.default("error"),
+  })
+  .strict()
+  .default({});
+const warningRuleSchema = z
+  .object({
+    ...baseRuleSchema,
+    severity: severitySchema.default("warning"),
+  })
+  .strict()
+  .default({});
+const errorRuleSchema = z
+  .object({
+    ...baseRuleSchema,
+    severity: severitySchema.default("error"),
+  })
+  .strict()
+  .default({});
+const interactionProbeSchema = z
+  .object({
+    allowButtonClicks: z.boolean().default(false),
+    effectTimeoutMs: z.number().int().positive().max(10_000).default(500),
+    stabilityMs: z.number().int().nonnegative().max(5_000).default(100),
+    layoutSettleMs: z.number().int().nonnegative().max(10_000).default(100),
+    maxControlsPerPage: z.number().int().nonnegative().max(1_000).default(20),
+    keyboardMaxSteps: z.number().int().positive().max(1_000).default(50),
+    dynamicSelectors: z
+      .array(z.string().min(1))
+      .default(["[data-walkdown-dynamic]", "[data-walkdown-volatile]"]),
+    ignoreRequestPatterns: z
+      .array(z.string().min(1))
+      .default(["*/analytics*", "*/collect*", "*google-analytics.com*"]),
+  })
+  .strict()
+  .default({});
 const checksSchema = z
   .object({
     placeholders: z
@@ -102,15 +141,24 @@ const checksSchema = z
         [RULE_IDS[2]]: pageErrorRuleSchema,
         [RULE_IDS[3]]: consoleErrorRuleSchema,
         [RULE_IDS[4]]: failedRequestRuleSchema,
+        [RULE_IDS[5]]: deadControlRuleSchema,
+        [RULE_IDS[6]]: warningRuleSchema,
+        [RULE_IDS[7]]: errorRuleSchema,
+        [RULE_IDS[8]]: errorRuleSchema,
+        [RULE_IDS[9]]: warningRuleSchema,
+        [RULE_IDS[10]]: warningRuleSchema,
+        [RULE_IDS[11]]: errorRuleSchema,
       })
       .strict()
       .default({}),
+    interaction: interactionProbeSchema,
   })
   .strict()
   .default({})
   .transform(
     (checks): ChecksConfig => ({
       placeholders: checks.placeholders,
+      interaction: checks.interaction,
       rules: Object.fromEntries(
         RULE_IDS.map((id) => [
           id,
@@ -147,7 +195,10 @@ const configSchema = z
     viewports: z
       .array(viewportSchema)
       .min(1)
-      .default([{ name: "desktop", width: 1440, height: 900 }]),
+      .default([
+        { name: "desktop", width: 1440, height: 900 },
+        { name: "mobile", width: 390, height: 844 },
+      ]),
     browser: browserSchema,
     exploration: explorationSchema,
     checks: checksSchema,
@@ -162,6 +213,7 @@ export type ConfigOverrides = Partial<
   checks?: {
     placeholders?: string[];
     rules?: { [Id in RuleId]?: Partial<RuleConfig> };
+    interaction?: Partial<InteractionProbeConfig>;
   };
 };
 

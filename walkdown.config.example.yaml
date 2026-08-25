@@ -11,6 +11,9 @@ viewports:
   - name: desktop
     width: 1440
     height: 900
+  - name: mobile
+    width: 390
+    height: 844
 browser:
   trace: true
   settleMs: 100
@@ -43,3 +46,38 @@ checks:
       severity: error
       ignoreMessagePatterns: []
       ignoreUrlPatterns: []
+    interaction.dead-control:
+      enabled: true
+      severity: error
+    interaction.pseudo-control:
+      enabled: true
+      severity: warning
+    responsive.horizontal-overflow:
+      enabled: true
+      severity: error
+    interaction.obstructed-control:
+      enabled: true
+      severity: error
+    accessibility.missing-name:
+      enabled: true
+      severity: warning
+    accessibility.keyboard-focus:
+      enabled: true
+      severity: warning
+    accessibility.modal-focus:
+      enabled: true
+      severity: error
+  interaction:
+    allowButtonClicks: false
+    effectTimeoutMs: 500
+    stabilityMs: 100
+    layoutSettleMs: 100
+    maxControlsPerPage: 20
+    keyboardMaxSteps: 50
+    dynamicSelectors:
+      - "[data-walkdown-dynamic]"
+      - "[data-walkdown-volatile]"
+    ignoreRequestPatterns:
+      - "*/analytics*"
+      - "*/collect*"
+      - "*google-analytics.com*"

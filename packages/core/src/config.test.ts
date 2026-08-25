@@ -23,6 +23,11 @@ describe("configuration", () => {
       severity: "warning",
       ignoreMessagePatterns: [],
     });
+    expect(config.checks.interaction.allowButtonClicks).toBe(false);
+    expect(config.viewports.map((viewport) => viewport.name)).toEqual([
+      "desktop",
+      "mobile",
+    ]);
     expect(() =>
       loadConfig({
         cwd: ".",

@@ -36,6 +36,13 @@ async function startFixture(): Promise<string> {
       response.end("fixture");
       return;
     }
+    if (request.url === "/popup") {
+      response.writeHead(200, { "content-type": "text/html" });
+      response.end(
+        "<!doctype html><title>Popup fixture</title><main>popup</main>",
+      );
+      return;
+    }
     if (request.url === "/missing") {
       response.writeHead(503, { "content-type": "text/plain" });
       response.end("unavailable");
@@ -74,6 +81,7 @@ async function startExplorerFixture(): Promise<string> {
       <a href="/admin/delete">Delete account</a>
       <a href="/download" download>Download export</a>
       <button>Publish project</button>
+      <button type="button">Neutral control</button>
       <form><input name="email"><input type="file"><button type="submit">Send</button></form>
       ${request.url === "/safe" ? '<a href="/deep">Deep route</a>' : ""}
     </main>`);
@@ -232,6 +240,11 @@ describe("BrowserSession", () => {
         }),
         expect.objectContaining({ risk: "external", outcome: "skipped" }),
         expect.objectContaining({ risk: "destructive", outcome: "skipped" }),
+        expect.objectContaining({
+          element: expect.objectContaining({ name: "Neutral control" }),
+          risk: "unknown",
+          outcome: "skipped",
+        }),
       ]),
     );
     expect(

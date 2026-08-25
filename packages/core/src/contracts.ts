@@ -53,6 +53,13 @@ export const RULE_IDS = [
   "runtime.page-error",
   "runtime.console-error",
   "runtime.failed-request",
+  "interaction.dead-control",
+  "interaction.pseudo-control",
+  "responsive.horizontal-overflow",
+  "interaction.obstructed-control",
+  "accessibility.missing-name",
+  "accessibility.keyboard-focus",
+  "accessibility.modal-focus",
 ] as const;
 
 export type RuleId = (typeof RULE_IDS)[number];
@@ -67,6 +74,18 @@ export interface RuleConfig {
 export interface ChecksConfig {
   placeholders: string[];
   rules: Record<RuleId, RuleConfig>;
+  interaction: InteractionProbeConfig;
+}
+
+export interface InteractionProbeConfig {
+  allowButtonClicks: boolean;
+  effectTimeoutMs: number;
+  stabilityMs: number;
+  layoutSettleMs: number;
+  maxControlsPerPage: number;
+  keyboardMaxSteps: number;
+  dynamicSelectors: string[];
+  ignoreRequestPatterns: string[];
 }
 
 export type ObservationKind =
@@ -78,7 +97,10 @@ export type ObservationKind =
   | "response"
   | "dialog"
   | "download"
-  | "popup";
+  | "popup"
+  | "interaction-attempt"
+  | "layout-check"
+  | "accessibility-check";
 
 export interface Observation {
   sequence: number;
@@ -122,6 +144,8 @@ export interface ElementRef {
   attributes: Record<string, string>;
   context: string;
   visible: boolean;
+  tagName?: string;
+  clickHints?: Array<"handler" | "pointer">;
   bounds?: { x: number; y: number; width: number; height: number };
 }
 
@@ -217,6 +241,42 @@ export interface FindingsArtifact {
   schemaVersion: typeof SCHEMA_VERSION;
   target: string;
   findings: Finding[];
+}
+
+export type InteractionOutcome = "pass" | "fail" | "inconclusive";
+
+export type ObservableEffectKind =
+  | "navigation"
+  | "dom-mutation"
+  | "request"
+  | "dialog"
+  | "download"
+  | "popup"
+  | "focus"
+  | "accessible-feedback";
+
+export interface ObservableEffect {
+  kind: ObservableEffectKind;
+  detail?: string;
+}
+
+export interface PageStateDigest {
+  url: string;
+  domHash: string;
+  focus: string;
+  feedbackHash: string;
+  dialogCount: number;
+}
+
+export interface InteractionAttempt {
+  routeUrl: string;
+  viewport: string;
+  element: ElementRef;
+  outcome: InteractionOutcome;
+  effects: ObservableEffect[];
+  before?: PageStateDigest;
+  after?: PageStateDigest;
+  reason: string;
 }
 
 export interface Run {

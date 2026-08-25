@@ -25,6 +25,13 @@ const builtinRules: readonly Rule[] = [
   pageErrorRule(),
   consoleErrorRule(),
   failedRequestRule(),
+  deadControlRule(),
+  pseudoControlRule(),
+  horizontalOverflowRule(),
+  obstructedControlRule(),
+  missingNameRule(),
+  keyboardFocusRule(),
+  modalFocusRule(),
 ];
 
 export function evaluateRules(context: RuleContext): FindingsArtifact {
@@ -304,6 +311,152 @@ function failedRequestRule(): Rule {
   };
 }
 
+function deadControlRule(): Rule {
+  const id = "interaction.dead-control" as const;
+  return observationIssueRule({
+    id,
+    kind: "interaction-attempt",
+    title: "Dead control",
+    description:
+      "A safe control executed successfully without an observable effect.",
+    defaultSeverity: "error",
+    message: "Control completed without an observable effect.",
+    matches: (observation) => observation.data.outcome === "fail",
+    cause: (observation) =>
+      `element:${elementIdentity(observation)}|viewport:${viewportName(observation)}`,
+  });
+}
+
+function pseudoControlRule(): Rule {
+  const id = "interaction.pseudo-control" as const;
+  return observationIssueRule({
+    id,
+    kind: "accessibility-check",
+    title: "Pseudo-control",
+    description:
+      "An element looks clickable but lacks complete interaction semantics.",
+    defaultSeverity: "warning",
+    message: "Clickable-looking element lacks functional semantics.",
+    matches: (observation) => observation.data.issue === "pseudo-control",
+    cause: (observation) => `element:${elementIdentity(observation)}`,
+  });
+}
+
+function horizontalOverflowRule(): Rule {
+  const id = "responsive.horizontal-overflow" as const;
+  return observationIssueRule({
+    id,
+    kind: "layout-check",
+    title: "Horizontal overflow",
+    description: "The document is wider than the configured viewport.",
+    defaultSeverity: "error",
+    message: "Page has horizontal overflow at a configured viewport.",
+    matches: (observation) => observation.data.issue === "horizontal-overflow",
+    cause: (observation) =>
+      `viewport:${viewportName(observation)}|offender:${nestedIdentity(
+        observation.data.offender,
+      )}`,
+  });
+}
+
+function obstructedControlRule(): Rule {
+  const id = "interaction.obstructed-control" as const;
+  return observationIssueRule({
+    id,
+    kind: "layout-check",
+    title: "Obstructed control",
+    description:
+      "A visible control cannot be actioned at its center point or reached in the viewport.",
+    defaultSeverity: "error",
+    message: "Visible control is covered or outside the actionable viewport.",
+    matches: (observation) =>
+      observation.data.issue === "obstructed-control" ||
+      observation.data.issue === "outside-viewport",
+    cause: (observation) =>
+      `element:${elementIdentity(observation)}|viewport:${viewportName(
+        observation,
+      )}|issue:${stringValue(observation.data.issue)}`,
+  });
+}
+
+function missingNameRule(): Rule {
+  const id = "accessibility.missing-name" as const;
+  return observationIssueRule({
+    id,
+    kind: "accessibility-check",
+    title: "Missing accessible name",
+    description: "A visible interactive control has no accessible name.",
+    defaultSeverity: "warning",
+    message: "Visible control has no accessible name.",
+    matches: (observation) => observation.data.issue === "missing-name",
+    cause: (observation) => `element:${elementIdentity(observation)}`,
+  });
+}
+
+function keyboardFocusRule(): Rule {
+  const id = "accessibility.keyboard-focus" as const;
+  return observationIssueRule({
+    id,
+    kind: "accessibility-check",
+    title: "Keyboard focus failure",
+    description:
+      "A bounded Tab traversal lost focus or cycled before reaching visible controls.",
+    defaultSeverity: "warning",
+    message: "Keyboard traversal did not reach all visible controls reliably.",
+    matches: (observation) =>
+      observation.data.issue === "keyboard-focus" &&
+      observation.data.outcome === "fail",
+    cause: (observation) => `viewport:${viewportName(observation)}`,
+  });
+}
+
+function modalFocusRule(): Rule {
+  const id = "accessibility.modal-focus" as const;
+  return observationIssueRule({
+    id,
+    kind: "accessibility-check",
+    title: "Modal focus failure",
+    description:
+      "A modal did not receive, contain, or return focus as expected.",
+    defaultSeverity: "error",
+    message: "Modal focus behavior is incomplete.",
+    matches: (observation) =>
+      observation.data.issue === "modal-focus" &&
+      observation.data.outcome === "fail",
+    cause: (observation) => `element:${elementIdentity(observation)}`,
+  });
+}
+
+function observationIssueRule(options: {
+  id: RuleId;
+  kind: Observation["kind"];
+  title: string;
+  description: string;
+  defaultSeverity: "warning" | "error";
+  message: string;
+  matches: (observation: Observation) => boolean;
+  cause: (observation: Observation) => string;
+}): Rule {
+  return {
+    metadata: options,
+    evaluate(context) {
+      return context.observations.flatMap((observation) => {
+        if (observation.kind !== options.kind || !options.matches(observation))
+          return [];
+        return [
+          draft(
+            options.id,
+            stringValue(observation.data.routeUrl) ?? context.target,
+            options.cause(observation),
+            options.message,
+            observationSample(observation),
+          ),
+        ];
+      });
+    },
+  };
+}
+
 function runtimeMessageRule(options: {
   id: RuleId;
   kind: Observation["kind"];
@@ -412,4 +565,25 @@ function stringValue(value: unknown): string | undefined {
 
 function numberValue(value: unknown): number | undefined {
   return typeof value === "number" ? value : undefined;
+}
+
+function elementIdentity(observation: Observation): string {
+  return nestedIdentity(observation.data.element);
+}
+
+function nestedIdentity(value: unknown): string {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    return "unknown";
+  const record = value as Record<string, unknown>;
+  return [record.id, record.tagName, record.role, record.name]
+    .filter((entry): entry is string => typeof entry === "string")
+    .join(":");
+}
+
+function viewportName(observation: Observation): string {
+  const viewport = observation.data.viewport;
+  if (typeof viewport === "string") return viewport;
+  if (viewport && typeof viewport === "object" && !Array.isArray(viewport))
+    return stringValue((viewport as Record<string, unknown>).name) ?? "unknown";
+  return "unknown";
 }

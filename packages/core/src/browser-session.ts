@@ -6,6 +6,10 @@ import {
   type Request,
 } from "playwright";
 import { ArtifactWriter, redactText } from "./artifact-writer.js";
+import {
+  type BehaviorCheckResult,
+  runBehaviorChecks,
+} from "./behavior-checker.js";
 import type {
   EffectiveConfig,
   EvidenceRef,
@@ -23,6 +27,7 @@ export interface BrowserSessionResult {
   observations: Observation[];
   evidence: EvidenceRef[];
   findings: FindingsArtifact;
+  behavior: BehaviorCheckResult;
   pageState: PageState;
 }
 
@@ -39,6 +44,15 @@ export async function runBrowserSession(options: {
     options.config.browser.maxArtifactBytes,
   );
   const observations: Observation[] = [];
+  const pendingObserverTasks = new Set<Promise<void>>();
+  const trackObserverTask = (task: Promise<unknown>) => {
+    const safeTask = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    pendingObserverTasks.add(safeTask);
+    void safeTask.finally(() => pendingObserverTasks.delete(safeTask));
+  };
   const startedAt = performance.now();
   const observe = (
     kind: Observation["kind"],
@@ -61,6 +75,7 @@ export async function runBrowserSession(options: {
     target: options.target,
     findings: [],
   };
+  let behavior: BehaviorCheckResult = { attempts: [] };
   const abort = () => {
     void context?.close();
   };
@@ -92,7 +107,7 @@ export async function runBrowserSession(options: {
     await writer.ensureDirectory();
     await context.tracing.start({ screenshots: true, snapshots: true });
     page = await context.newPage();
-    installObservers(page, observe, options.target);
+    installObservers(page, observe, options.target, trackObserverTask);
     try {
       await page.goto(options.target, {
         waitUntil: "domcontentloaded",
@@ -131,6 +146,15 @@ export async function runBrowserSession(options: {
       config: options.config,
       signal: options.signal,
     });
+    if (!context)
+      throw new Error("Browser context closed before behavior checks.");
+    behavior = await runBehaviorChecks({
+      context,
+      appGraph: graph,
+      config: options.config,
+      signal: options.signal,
+      observe,
+    });
     findings = evaluateRules({
       target: options.target,
       observations,
@@ -141,6 +165,7 @@ export async function runBrowserSession(options: {
     await writer.writeJson("observations.json", "observations", observations);
     await writer.writeJson("findings.json", "findings", findings);
   } finally {
+    await drainTasks(pendingObserverTasks);
     if (context) {
       try {
         await context.tracing.stop({ path: writer.artifactPath("trace.zip") });
@@ -156,13 +181,20 @@ export async function runBrowserSession(options: {
     options.signal.removeEventListener("abort", abort);
     await writer.writeManifest(observations);
   }
-  return { observations, evidence: writer.evidence, findings, pageState };
+  return {
+    observations,
+    evidence: writer.evidence,
+    findings,
+    behavior,
+    pageState,
+  };
 }
 
 function installObservers(
   page: Page,
   observe: (kind: Observation["kind"], data: Record<string, unknown>) => void,
   target: string,
+  track: (task: Promise<unknown>) => void,
 ): void {
   page.on("console", (message) =>
     observe("console", {
@@ -221,20 +253,40 @@ function installObservers(
       type: dialog.type(),
       message: redactText(dialog.message()),
     });
-    void dialog.dismiss().catch(() => undefined);
+    track(dialog.dismiss());
   });
   page.on("download", (download) =>
     observe("download", {
       suggestedFilename: redactText(download.suggestedFilename()),
     }),
   );
-  page.on("popup", (popup) => observe("popup", { url: popup.url() }));
+  page.on("popup", (popup) => {
+    observe("popup", { url: popup.url() });
+    popup.on("dialog", (dialog) => track(dialog.dismiss()));
+    popup.on("popup", (child) => {
+      child.on("dialog", (dialog) => track(dialog.dismiss()));
+      track(child.close());
+    });
+    track(closePopupAfterEvents(popup));
+  });
   page.on("framenavigated", (frame) => {
     if (frame === page.mainFrame()) {
       observe("navigation", { url: frame.url() });
       observe("url-change", { url: frame.url() });
     }
   });
+}
+
+async function drainTasks(tasks: Set<Promise<void>>): Promise<void> {
+  while (tasks.size > 0) await Promise.allSettled([...tasks]);
+}
+
+async function closePopupAfterEvents(popup: Page): Promise<void> {
+  await popup
+    .waitForLoadState("domcontentloaded", { timeout: 1_000 })
+    .catch(() => undefined);
+  await popup.waitForTimeout(500).catch(() => undefined);
+  await popup.close().catch(() => undefined);
 }
 
 function requestRedirectChain(request: Request): string[] {

@@ -13,6 +13,8 @@ import { SCHEMA_VERSION } from "./contracts.js";
 const riskyWords =
   /\b(delete|remove|destroy|pay|buy|purchase|send|publish|invite|logout|sign\s*out)\b/i;
 const trackingParameter = /^(utm_.+|fbclid|gclid)$/i;
+export const INTERACTIVE_SELECTOR =
+  "a,button,input,select,textarea,[role],[onclick],[tabindex],[style*='cursor']";
 
 interface ExtractedElement {
   element: ElementRef;
@@ -64,6 +66,8 @@ export async function exploreApplication(options: {
         waitUntil: "domcontentloaded",
         timeout: options.config.timeoutMs,
       });
+      if (options.config.browser.settleMs > 0)
+        await options.page.waitForTimeout(options.config.browser.settleMs);
     } catch {
       routes.push({
         url: current.url,
@@ -177,95 +181,135 @@ async function extractElements(
   page: Page,
   baseUrl: string,
 ): Promise<ExtractedElement[]> {
-  return page
-    .locator("a,button,input,select,textarea,[role],[onclick]")
-    .evaluateAll((nodes, pageBase) => {
-      const roleFor = (element: Element): string =>
-        element.getAttribute("role") ??
-        {
-          A: "link",
-          BUTTON: "button",
-          INPUT: "input",
-          SELECT: "select",
-          TEXTAREA: "textbox",
-        }[element.tagName] ??
-        "interactive";
-      return nodes.map((node, index) => {
-        const element = node as HTMLElement;
-        const computed = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        const attributes = [
-          "href",
-          "type",
-          "name",
-          "aria-label",
-          "title",
-          "download",
-          "formaction",
-        ].reduce<Record<string, string>>((result, name) => {
-          const value = element.getAttribute(name);
-          if (value !== null) result[name] = value;
-          return result;
-        }, {});
-        const href =
-          element instanceof HTMLAnchorElement && element.href
-            ? new URL(element.href, pageBase).toString()
-            : undefined;
-        const kind =
-          element instanceof HTMLAnchorElement &&
-          element.hasAttribute("download")
-            ? "download"
-            : element instanceof HTMLAnchorElement
-              ? "navigate"
-              : element instanceof HTMLInputElement && element.type === "file"
-                ? "upload"
-                : element instanceof HTMLInputElement ||
-                    element instanceof HTMLTextAreaElement
-                  ? "input"
-                  : element instanceof HTMLSelectElement
-                    ? "select"
-                    : element.closest("form")
-                      ? "submit"
-                      : "click";
-        const name =
-          element.getAttribute("aria-label") ||
-          element.getAttribute("title") ||
-          element.innerText.trim() ||
-          element.getAttribute("name") ||
-          "";
-        const context =
-          element
-            .closest("section,article,main,nav,form")
-            ?.getAttribute("aria-label") ||
-          element
-            .closest("section,article,main,nav,form")
-            ?.tagName.toLowerCase() ||
-          "document";
-        return {
-          element: {
-            id: `element-${index + 1}`,
-            role: roleFor(element),
-            name,
-            text: element.innerText.trim() || undefined,
-            attributes,
-            context,
-            visible:
-              computed.visibility !== "hidden" &&
-              computed.display !== "none" &&
-              rect.width > 0 &&
-              rect.height > 0,
-            bounds: {
-              x: Math.round(rect.x),
-              y: Math.round(rect.y),
-              width: Math.round(rect.width),
-              height: Math.round(rect.height),
-            },
+  return page.locator(INTERACTIVE_SELECTOR).evaluateAll((nodes, pageBase) => {
+    const roleFor = (element: Element): string =>
+      element.getAttribute("role") ??
+      {
+        A: "link",
+        BUTTON: "button",
+        INPUT: "input",
+        SELECT: "select",
+        TEXTAREA: "textbox",
+      }[element.tagName] ??
+      "interactive";
+    return nodes.map((node, index) => {
+      const element = node as HTMLElement;
+      const computed = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      const attributes = [
+        "href",
+        "type",
+        "name",
+        "aria-label",
+        "title",
+        "download",
+        "formaction",
+        "disabled",
+        "tabindex",
+        "role",
+        "aria-controls",
+        "aria-expanded",
+        "aria-haspopup",
+        "aria-labelledby",
+        "aria-modal",
+        "aria-pressed",
+        "alt",
+        "data-walkdown-safe",
+      ].reduce<Record<string, string>>((result, name) => {
+        const value = element.getAttribute(name);
+        if (value !== null) result[name] = value;
+        return result;
+      }, {});
+      const href =
+        element instanceof HTMLAnchorElement && element.href
+          ? new URL(element.href, pageBase).toString()
+          : undefined;
+      const kind =
+        element instanceof HTMLAnchorElement && element.hasAttribute("download")
+          ? "download"
+          : element instanceof HTMLAnchorElement
+            ? "navigate"
+            : element instanceof HTMLInputElement && element.type === "file"
+              ? "upload"
+              : element instanceof HTMLInputElement ||
+                  element instanceof HTMLTextAreaElement
+                ? "input"
+                : element instanceof HTMLSelectElement
+                  ? "select"
+                  : element.closest("form")
+                    ? "submit"
+                    : "click";
+      const labelledBy = (element.getAttribute("aria-labelledby") ?? "")
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((id) => document.getElementById(id)?.textContent?.trim() ?? "")
+        .filter(Boolean)
+        .join(" ");
+      const labels =
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLSelectElement ||
+        element instanceof HTMLTextAreaElement
+          ? [...(element.labels ?? [])]
+              .map((label) => label.innerText.trim())
+              .filter(Boolean)
+              .join(" ")
+          : "";
+      const descendantAlternative =
+        element.querySelector("img[alt]")?.getAttribute("alt") ||
+        element.querySelector("svg title")?.textContent?.trim() ||
+        "";
+      const name =
+        element.getAttribute("aria-label") ||
+        labelledBy ||
+        labels ||
+        element.getAttribute("title") ||
+        element.innerText.trim() ||
+        descendantAlternative ||
+        element.getAttribute("alt") ||
+        element.getAttribute("name") ||
+        "";
+      const context =
+        element
+          .closest("section,article,main,nav,form")
+          ?.getAttribute("aria-label") ||
+        element
+          .closest("section,article,main,nav,form")
+          ?.tagName.toLowerCase() ||
+        "document";
+      const clickHints: Array<"handler" | "pointer"> = [];
+      if (
+        element.hasAttribute("onclick") ||
+        typeof element.onclick === "function"
+      )
+        clickHints.push("handler");
+      if (computed.cursor === "pointer") clickHints.push("pointer");
+      return {
+        element: {
+          id: `element-${index + 1}`,
+          role: roleFor(element),
+          name,
+          text: element.innerText.trim() || undefined,
+          attributes,
+          context,
+          visible:
+            computed.visibility !== "hidden" &&
+            computed.display !== "none" &&
+            rect.width > 0 &&
+            rect.height > 0,
+          tagName: element.tagName.toLowerCase(),
+          clickHints,
+          bounds: {
+            x: Math.round(rect.x),
+            y: Math.round(rect.y),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
           },
-          kind,
-          href,
-        };
-      });
-    }, baseUrl);
+        },
+        kind,
+        href,
+      };
+    });
+  }, baseUrl);
 }
 
 function classifyAction(
@@ -291,6 +335,26 @@ function classifyAction(
       risk: "unknown",
       reason: "form control is not activated by default",
     };
+  if (candidate.kind === "click") {
+    if (
+      candidate.element.tagName === "button" &&
+      !("disabled" in candidate.element.attributes) &&
+      (config.checks.interaction.allowButtonClicks ||
+        candidate.element.attributes["aria-controls"] !== undefined ||
+        candidate.element.attributes["aria-expanded"] !== undefined ||
+        candidate.element.attributes["aria-haspopup"] !== undefined ||
+        candidate.element.attributes["aria-pressed"] !== undefined ||
+        candidate.element.attributes["data-walkdown-safe"] !== undefined)
+    )
+      return {
+        risk: "safe",
+        reason: "authorized or reversible native non-form button",
+      };
+    return {
+      risk: "unknown",
+      reason: "non-native or ambiguous click control is not activated",
+    };
+  }
   if (candidate.kind !== "navigate")
     return {
       risk: "unknown",

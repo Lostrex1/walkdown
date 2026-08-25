@@ -94,6 +94,67 @@
             },
             "runtime.failed-request": {
               "$ref": "#/$defs/requestRule"
+            },
+            "interaction.dead-control": {
+              "$ref": "#/$defs/basicRule"
+            },
+            "interaction.pseudo-control": {
+              "$ref": "#/$defs/basicRule"
+            },
+            "responsive.horizontal-overflow": {
+              "$ref": "#/$defs/basicRule"
+            },
+            "interaction.obstructed-control": {
+              "$ref": "#/$defs/basicRule"
+            },
+            "accessibility.missing-name": {
+              "$ref": "#/$defs/basicRule"
+            },
+            "accessibility.keyboard-focus": {
+              "$ref": "#/$defs/basicRule"
+            },
+            "accessibility.modal-focus": {
+              "$ref": "#/$defs/basicRule"
+            }
+          }
+        },
+        "interaction": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allowButtonClicks": { "type": "boolean" },
+            "effectTimeoutMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            },
+            "stabilityMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5000
+            },
+            "layoutSettleMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "maxControlsPerPage": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            "keyboardMaxSteps": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            "dynamicSelectors": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "ignoreRequestPatterns": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
             }
           }
         }
