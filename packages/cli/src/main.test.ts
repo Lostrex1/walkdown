@@ -82,16 +82,33 @@ describe("walkdown CLI", () => {
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     );
-    const run = JSON.parse(result.stdout);
-    expect(run).toMatchObject({
+    const runResult = JSON.parse(result.stdout);
+    expect(runResult).toMatchObject({
       target: target.replace("#fragment", ""),
-      status: "completed",
       schemaVersion: 1,
+      run: { status: "completed" },
+      summary: { verdict: "pass" },
     });
+    const run = JSON.parse(
+      await readFile(
+        join(directory, "runs", runResult.run.runId, "run.json"),
+        "utf8",
+      ),
+    );
+    expect(run).toMatchObject(runResult.run);
     expect(
       JSON.parse(
-        await readFile(join(directory, "runs", run.runId, "run.json"), "utf8"),
+        await readFile(
+          join(directory, "runs", runResult.run.runId, "result.json"),
+          "utf8",
+        ),
       ),
-    ).toMatchObject(run);
+    ).toEqual(runResult);
+    await expect(
+      readFile(
+        join(directory, "runs", runResult.run.runId, "report.md"),
+        "utf8",
+      ),
+    ).resolves.toContain("# Walkdown: PASS");
   }, 20_000);
 });

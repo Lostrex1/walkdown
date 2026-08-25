@@ -1,0 +1,215 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Lostrex1/walkdown/schemas/run-result.schema.json",
+  "title": "Walkdown RunResult v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "run",
+    "target",
+    "config",
+    "coverage",
+    "summary",
+    "findings",
+    "evidence"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "startedAt", "finishedAt", "status", "version"],
+      "properties": {
+        "runId": { "type": "string", "minLength": 1 },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "finishedAt": { "type": "string", "format": "date-time" },
+        "status": { "enum": ["completed", "cancelled", "incomplete"] },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "target": { "type": "string", "format": "uri" },
+    "config": { "type": "object" },
+    "coverage": { "$ref": "#/definitions/coverage" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verdict", "findingCount", "blockers", "bySeverity"],
+      "properties": {
+        "verdict": { "enum": ["pass", "fail", "incomplete"] },
+        "findingCount": { "type": "integer", "minimum": 0 },
+        "blockers": { "type": "integer", "minimum": 0 },
+        "bySeverity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["info", "warning", "error", "blocking"],
+          "properties": {
+            "info": { "type": "integer", "minimum": 0 },
+            "warning": { "type": "integer", "minimum": 0 },
+            "error": { "type": "integer", "minimum": 0 },
+            "blocking": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/finding" }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/evidence" }
+    }
+  },
+  "definitions": {
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "visitedPages",
+        "discoveredPages",
+        "pendingRoutes",
+        "skippedActions",
+        "stopReasons"
+      ],
+      "properties": {
+        "status": { "enum": ["complete", "incomplete"] },
+        "visitedPages": { "type": "integer", "minimum": 0 },
+        "discoveredPages": { "type": "integer", "minimum": 0 },
+        "pendingRoutes": { "type": "array", "items": { "type": "string" } },
+        "skippedActions": { "type": "integer", "minimum": 0 },
+        "stopReasons": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "providerVersion", "nativeId", "adapterVersion"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "providerVersion": { "type": "string", "minLength": 1 },
+        "nativeId": { "type": "string", "minLength": 1 },
+        "adapterVersion": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "path", "status"],
+      "properties": {
+        "type": {
+          "enum": [
+            "screenshot",
+            "trace",
+            "accessibility",
+            "observations",
+            "app-graph",
+            "findings",
+            "manifest",
+            "result"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^(?![A-Za-z]:)(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+        },
+        "status": { "enum": ["available", "omitted", "truncated"] },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "status": { "enum": ["omitted", "truncated"] } }
+          },
+          "then": { "required": ["reason"] }
+        }
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "required": [
+        "id",
+        "fingerprint",
+        "ruleId",
+        "source",
+        "state",
+        "severity",
+        "confidence",
+        "route",
+        "message",
+        "occurrenceCount",
+        "facts",
+        "observations",
+        "evidence",
+        "inference",
+        "repair",
+        "expectedOutcome",
+        "verification"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "fingerprint": { "type": "string", "minLength": 1 },
+        "ruleId": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/definitions/source" },
+        "state": {
+          "enum": [
+            "new",
+            "persistent",
+            "regressed",
+            "fixed",
+            "ignored",
+            "inconclusive"
+          ]
+        },
+        "severity": { "enum": ["info", "warning", "error", "blocking"] },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "route": { "type": "string", "format": "uri" },
+        "element": { "type": "object" },
+        "action": { "type": "object" },
+        "message": { "type": "string", "minLength": 1 },
+        "occurrenceCount": { "type": "integer", "minimum": 1 },
+        "facts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "observations": { "type": "array", "items": { "type": "object" } },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/evidence" }
+        },
+        "inference": { "type": "string", "minLength": 1 },
+        "repair": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["objective", "constraints", "acceptanceCriteria"],
+          "properties": {
+            "objective": { "type": "string", "minLength": 1 },
+            "constraints": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string" }
+            },
+            "acceptanceCriteria": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "expectedOutcome": { "type": "string", "minLength": 1 },
+        "verification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command", "expectedOutcome"],
+          "properties": {
+            "command": { "type": "string", "minLength": 1 },
+            "expectedOutcome": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}

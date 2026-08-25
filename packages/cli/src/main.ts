@@ -2,14 +2,20 @@
 import { dirname } from "node:path";
 import process from "node:process";
 import {
+  assembleRunResult,
+  type BrowserSessionResult,
   type ConfigOverrides,
   ExitCode,
   executeRun,
   loadConfig,
   normalizeTarget,
+  type OutputFormat,
   RunStore,
+  renderRunResult,
   runBrowserSession,
   WalkdownError,
+  writeDerivedReports,
+  writeRunResult,
 } from "@walkdown/core";
 import { Command } from "commander";
 
@@ -22,6 +28,7 @@ interface ScanOptions {
   printConfig?: boolean;
   format?: string;
   quiet?: boolean;
+  verbose?: boolean;
 }
 function optionInteger(value: string, name: string): number {
   const parsed = Number(value);
@@ -33,14 +40,21 @@ function optionInteger(value: string, name: string): number {
     );
   return parsed;
 }
-function outputFormat(value: string | undefined): "human" | "json" {
-  if (value === undefined || value === "human" || value === "json") {
-    return value ?? "human";
-  }
+function outputFormat(value: string | undefined): OutputFormat {
+  const supported: OutputFormat[] = [
+    "human",
+    "json",
+    "jsonl",
+    "markdown",
+    "sarif",
+    "agent",
+  ];
+  if (value === undefined) return "human";
+  if (supported.includes(value as OutputFormat)) return value as OutputFormat;
   throw new WalkdownError(
     "INVALID_ARGUMENT",
     `Unsupported output format: ${value}`,
-    "Use --format human or --format json.",
+    `Use one of: ${supported.join(", ")}.`,
   );
 }
 async function scan(targetInput: string, options: ScanOptions): Promise<void> {
@@ -61,12 +75,13 @@ async function scan(targetInput: string, options: ScanOptions): Promise<void> {
     return;
   }
   const store = new RunStore(config.outputDir, VERSION);
+  let browserResult: BrowserSessionResult | undefined;
   const result = await executeRun(
     store,
     target,
     config,
     async ({ filePath, signal }) => {
-      await runBrowserSession({
+      browserResult = await runBrowserSession({
         target,
         runDirectory: dirname(filePath),
         config,
@@ -75,15 +90,33 @@ async function scan(targetInput: string, options: ScanOptions): Promise<void> {
       return "completed";
     },
   );
-  if (format === "json" || options.quiet)
-    process.stdout.write(`${JSON.stringify(result.run)}\n`);
-  else {
-    process.stdout.write(
-      `Walkdown run ${result.run.runId}: ${result.run.status}\nTarget: ${result.run.target}\nResult: ${store.relativePath(result.filePath)}\n`,
-    );
-  }
+  if (!browserResult)
+    throw new Error("Browser session completed without a result.");
+  const runResult = assembleRunResult({
+    run: result.run,
+    appGraph: browserResult.appGraph,
+    findings: browserResult.findings.findings,
+    evidence: browserResult.evidence,
+    omissions: browserResult.omissions,
+  });
+  await writeRunResult(dirname(result.filePath), runResult);
+  await writeDerivedReports(dirname(result.filePath), runResult);
+  const selectedFormat = options.quiet ? "json" : format;
+  process.stdout.write(
+    renderRunResult(runResult, selectedFormat, {
+      color:
+        selectedFormat === "human" &&
+        process.stdout.isTTY === true &&
+        process.env.NO_COLOR === undefined,
+      verbose: options.verbose,
+    }),
+  );
   process.exitCode =
-    result.run.status === "cancelled" ? ExitCode.incomplete : ExitCode.success;
+    runResult.summary.verdict === "pass"
+      ? ExitCode.success
+      : runResult.summary.verdict === "fail"
+        ? ExitCode.findings
+        : ExitCode.incomplete;
 }
 const program = new Command();
 program
@@ -104,8 +137,13 @@ program
     "--print-config",
     "Print the effective, redacted configuration and exit",
   )
-  .option("--format <format>", "Output format: human or json", "human")
+  .option(
+    "--format <format>",
+    "Output format: human, json, jsonl, markdown, sarif, or agent",
+    "human",
+  )
   .option("-q, --quiet", "Emit machine-readable JSON only")
+  .option("--verbose", "Include full finding detail in human-readable output")
   .action(async (url: string, options: ScanOptions) => scan(url, options));
 try {
   await program.parseAsync();

@@ -11,6 +11,7 @@ import {
   runBehaviorChecks,
 } from "./behavior-checker.js";
 import type {
+  AppGraph,
   EffectiveConfig,
   EvidenceRef,
   FindingsArtifact,
@@ -29,6 +30,8 @@ export interface BrowserSessionResult {
   findings: FindingsArtifact;
   behavior: BehaviorCheckResult;
   pageState: PageState;
+  appGraph: AppGraph;
+  omissions: string[];
 }
 
 export async function runBrowserSession(options: {
@@ -76,6 +79,19 @@ export async function runBrowserSession(options: {
     findings: [],
   };
   let behavior: BehaviorCheckResult = { attempts: [] };
+  let appGraph: AppGraph = {
+    schemaVersion: SCHEMA_VERSION,
+    target: options.target,
+    routes: [],
+    coverage: {
+      status: "incomplete",
+      visitedPages: 0,
+      discoveredPages: 0,
+      pendingRoutes: [options.target],
+      skippedActions: 0,
+      stopReasons: ["browser-session-incomplete"],
+    },
+  };
   const abort = () => {
     void context?.close();
   };
@@ -146,6 +162,7 @@ export async function runBrowserSession(options: {
       config: options.config,
       signal: options.signal,
     });
+    appGraph = graph;
     if (!context)
       throw new Error("Browser context closed before behavior checks.");
     behavior = await runBehaviorChecks({
@@ -187,6 +204,8 @@ export async function runBrowserSession(options: {
     findings,
     behavior,
     pageState,
+    appGraph,
+    omissions: writer.omissions,
   };
 }
 

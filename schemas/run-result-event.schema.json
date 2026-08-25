@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Lostrex1/walkdown/schemas/run-result-event.schema.json",
+  "title": "Walkdown RunResult JSONL event v1",
+  "type": "object",
+  "required": ["schemaVersion", "type"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "type": { "enum": ["run", "finding", "coverage", "summary"] }
+  },
+  "oneOf": [
+    {
+      "properties": { "type": { "const": "run" } },
+      "required": ["run", "target", "config"]
+    },
+    {
+      "properties": { "type": { "const": "finding" } },
+      "required": ["finding"]
+    },
+    {
+      "properties": { "type": { "const": "coverage" } },
+      "required": ["coverage"]
+    },
+    {
+      "properties": { "type": { "const": "summary" } },
+      "required": ["summary", "evidence"]
+    }
+  ]
+}

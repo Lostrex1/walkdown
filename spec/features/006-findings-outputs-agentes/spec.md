@@ -1,6 +1,6 @@
 # 006 · Findings, artefactos y outputs agent-native
 
-**Estado:** propuesta
+**Estado:** hecho
 
 ## Qué hace
 
@@ -12,20 +12,20 @@ El usuario principal puede ser humano o agente. Un texto agradable no basta para
 
 ## Criterios de aceptación
 
-- [ ] El JSON v1 contiene `schemaVersion`, run, target, configuración relevante, cobertura, resumen y findings.
-- [ ] Cada finding contiene ID de regla, fingerprint, estado, severidad, confianza, ruta, ElementRef si aplica, acción, observaciones, evidencia, expected outcome y verificación.
-- [ ] El contrato admite `FindingSource` con provider, providerVersion, nativeId y adapterVersion sin obligar al MVP a ejecutar proveedores externos.
-- [ ] Los findings nativos declaran `provider: walkdown`; los externos conservan namespace, mensaje y procedencia originales y nunca aparentan haber sido detectados por Walkdown.
-- [ ] Los campos `facts`, `inference` y `repair` están separados y una recomendación nunca se presenta como observación.
-- [ ] `repair` incluye objetivo, restricciones y criterios de aceptación accionables sin exigir un framework concreto cuando se desconoce.
-- [ ] Todas las rutas de evidencia son relativas, existen o se marcan como omitidas/truncadas con razón.
-- [ ] JSONL puede consumirse incrementalmente y termina con un evento de resumen.
-- [ ] La salida terminal muestra veredicto, bloqueantes, cobertura y siguientes comandos; respeta `NO_COLOR`.
-- [ ] Markdown produce un informe portable con enlaces relativos a artefactos.
-- [ ] SARIF 2.1.0 valida y publica reglas/resultados; solo añade localización de código cuando exista evidencia real, no adivinada.
-- [ ] Los formats no cambian exit code ni semántica del run.
-- [ ] Hay fixtures golden y validación contra JSON Schema para todos los outputs machine-readable.
-- [ ] Un prompt para agente se genera como vista derivada y nunca sustituye el JSON canónico.
+- [x] El JSON v1 contiene `schemaVersion`, run, target, configuración relevante, cobertura, resumen y findings.
+- [x] Cada finding contiene ID de regla, fingerprint, estado, severidad, confianza, ruta, ElementRef si aplica, acción, observaciones, evidencia, expected outcome y verificación.
+- [x] El contrato admite `FindingSource` con provider, providerVersion, nativeId y adapterVersion sin obligar al MVP a ejecutar proveedores externos.
+- [x] Los findings nativos declaran `provider: walkdown`; los externos conservan namespace, mensaje y procedencia originales y nunca aparentan haber sido detectados por Walkdown.
+- [x] Los campos `facts`, `inference` y `repair` están separados y una recomendación nunca se presenta como observación.
+- [x] `repair` incluye objetivo, restricciones y criterios de aceptación accionables sin exigir un framework concreto cuando se desconoce.
+- [x] Todas las rutas de evidencia son relativas, existen o se marcan como omitidas/truncadas con razón.
+- [x] JSONL puede consumirse incrementalmente y termina con un evento de resumen.
+- [x] La salida terminal muestra veredicto, bloqueantes, cobertura y siguientes comandos; respeta `NO_COLOR`.
+- [x] Markdown produce un informe portable con enlaces relativos a artefactos.
+- [x] SARIF 2.1.0 valida y publica reglas/resultados; solo añade localización de código cuando exista evidencia real, no adivinada.
+- [x] Los formats no cambian exit code ni semántica del run.
+- [x] Hay fixtures golden y validación contra JSON Schema para todos los outputs machine-readable.
+- [x] Un prompt para agente se genera como vista derivada y nunca sustituye el JSON canónico.
 
 ## Fuera de alcance
 

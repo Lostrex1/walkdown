@@ -243,6 +243,90 @@ export interface FindingsArtifact {
   findings: Finding[];
 }
 
+export type FindingState =
+  | "new"
+  | "persistent"
+  | "regressed"
+  | "fixed"
+  | "ignored"
+  | "inconclusive";
+
+export type FindingConfidence = "low" | "medium" | "high";
+
+export interface FindingSource {
+  provider: string;
+  providerVersion: string;
+  nativeId: string;
+  adapterVersion: string;
+}
+
+export interface PublishedEvidenceRef {
+  type: EvidenceRef["type"] | "manifest" | "result";
+  path: string;
+  status: "available" | "omitted" | "truncated";
+  bytes?: number;
+  reason?: string;
+}
+
+export interface RepairContract {
+  objective: string;
+  constraints: string[];
+  acceptanceCriteria: string[];
+}
+
+export interface VerificationRecipe {
+  command: string;
+  expectedOutcome: string;
+}
+
+export interface PublishedFinding {
+  id: string;
+  fingerprint: string;
+  ruleId: string;
+  source: FindingSource;
+  state: FindingState;
+  severity: Severity;
+  confidence: FindingConfidence;
+  route: string;
+  element?: ElementRef;
+  action?: CandidateAction;
+  message: string;
+  occurrenceCount: number;
+  facts: string[];
+  observations: FindingSample[];
+  evidence: PublishedEvidenceRef[];
+  inference: string;
+  repair: RepairContract;
+  expectedOutcome: string;
+  verification: VerificationRecipe;
+}
+
+export type RunVerdict = "pass" | "fail" | "incomplete";
+
+export interface RunSummary {
+  verdict: RunVerdict;
+  findingCount: number;
+  blockers: number;
+  bySeverity: Record<Severity, number>;
+}
+
+export interface RunResult {
+  schemaVersion: typeof SCHEMA_VERSION;
+  run: {
+    runId: string;
+    startedAt: string;
+    finishedAt: string;
+    status: Exclude<RunStatus, "running">;
+    version: string;
+  };
+  target: string;
+  config: EffectiveConfig;
+  coverage: CoverageSummary;
+  summary: RunSummary;
+  findings: PublishedFinding[];
+  evidence: PublishedEvidenceRef[];
+}
+
 export type InteractionOutcome = "pass" | "fail" | "inconclusive";
 
 export type ObservableEffectKind =

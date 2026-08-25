@@ -6,7 +6,7 @@ The project is specification-driven. Product requirements, architecture decision
 
 ## Status
 
-The project has implemented **005 · interaction, responsive, and functional accessibility checks**. The next implementation milestone is **006 · findings, artifacts, and agent-native outputs**.
+The project has implemented **006 · findings, artifacts, and agent-native outputs**. The next implementation milestone is **007 · baseline, focused verification, and regression**.
 
 ## Principles
 
@@ -34,7 +34,7 @@ npm run dev -- scan http://localhost:3000
 
 Configuration is loaded from `walkdown.config.yaml`. See [walkdown.config.example.yaml](walkdown.config.example.yaml) and [schemas/config.schema.json](schemas/config.schema.json). Precedence is CLI flags, then `WALKDOWN_OUTPUT_DIR`, `WALKDOWN_TIMEOUT_MS`, and `WALKDOWN_MAX_PAGES`, then the config file, then defaults. Use `--print-config` to inspect the effective non-sensitive configuration.
 
-Human output is sent to stdout. `--format json` or `--quiet` emits one JSON result only; diagnostics and errors go to stderr.
+Human output is sent to stdout. `--format` supports `human`, `json`, `jsonl`, `markdown`, `sarif`, and `agent`; `--quiet` emits canonical JSON. Every successful browser session also writes the canonical `result.json` inside its run directory. Diagnostics and errors go to stderr. See [RunResult and output formats](docs/outputs.md) for contracts, provenance, evidence links, and exit semantics.
 
 Browser capture defaults to a 100 ms settle window and 10 MB maximum size per artifact. Configure these limits under `browser` in `walkdown.config.yaml`; oversized artifacts are omitted explicitly in the run manifest rather than silently truncated. Evidence paths in that manifest always use `/` relative to the run directory and sensitive token-like values are redacted before persistence.
 

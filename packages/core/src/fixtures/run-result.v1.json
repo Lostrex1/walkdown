@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "runId": "20260825-fixture",
+    "startedAt": "2026-08-25T10:00:00.000Z",
+    "finishedAt": "2026-08-25T10:00:05.000Z",
+    "status": "completed",
+    "version": "0.1.0"
+  },
+  "target": "https://example.test/",
+  "config": {},
+  "coverage": {
+    "status": "complete",
+    "visitedPages": 1,
+    "discoveredPages": 1,
+    "pendingRoutes": [],
+    "skippedActions": 0,
+    "stopReasons": []
+  },
+  "summary": {
+    "verdict": "fail",
+    "findingCount": 1,
+    "blockers": 1,
+    "bySeverity": { "info": 0, "warning": 0, "error": 1, "blocking": 0 }
+  },
+  "findings": [
+    {
+      "id": "preflight.runtime:fixture",
+      "fingerprint": "fixture-fingerprint",
+      "ruleId": "preflight.runtime.external-error",
+      "source": {
+        "provider": "preflight",
+        "providerVersion": "2.4.0",
+        "nativeId": "runtime.external-error",
+        "adapterVersion": "1.0.0"
+      },
+      "state": "new",
+      "severity": "error",
+      "confidence": "high",
+      "route": "https://example.test/checkout",
+      "message": "External provider observed a runtime failure.",
+      "occurrenceCount": 1,
+      "facts": ["The provider emitted native finding runtime.external-error."],
+      "observations": [{ "data": { "message": "Original provider message." } }],
+      "evidence": [
+        {
+          "type": "observations",
+          "path": "artifacts/observations.json",
+          "status": "available",
+          "bytes": 120
+        }
+      ],
+      "inference": "The observed flow cannot complete reliably.",
+      "repair": {
+        "objective": "Prevent the runtime failure in the observed flow.",
+        "constraints": ["Preserve the provider message and provenance."],
+        "acceptanceCriteria": [
+          "The external provider no longer emits this native finding."
+        ]
+      },
+      "expectedOutcome": "The checkout flow completes without the runtime failure.",
+      "verification": {
+        "command": "walkdown scan https://example.test/checkout --format json",
+        "expectedOutcome": "The fingerprint is absent from active findings."
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "type": "observations",
+      "path": "artifacts/observations.json",
+      "status": "available",
+      "bytes": 120
+    }
+  ]
+}
