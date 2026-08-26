@@ -46,6 +46,7 @@ export interface ExplorationConfig {
 
 export interface BrowserConfig {
   trace: boolean;
+  screenshot: boolean;
   settleMs: number;
   maxArtifactBytes: number;
   userAgent?: string;

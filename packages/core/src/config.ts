@@ -26,6 +26,7 @@ const viewportSchema = z
 const browserSchema = z
   .object({
     trace: z.boolean().default(true),
+    screenshot: z.boolean().default(true),
     settleMs: z.number().int().nonnegative().max(10_000).default(100),
     maxArtifactBytes: z
       .number()

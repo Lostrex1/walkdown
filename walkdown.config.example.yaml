@@ -16,6 +16,7 @@ viewports:
     height: 844
 browser:
   trace: true
+  screenshot: true
   settleMs: 100
   maxArtifactBytes: 10000000
 exploration:

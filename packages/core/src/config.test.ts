@@ -24,6 +24,7 @@ describe("configuration", () => {
       ignoreMessagePatterns: [],
     });
     expect(config.checks.interaction.allowButtonClicks).toBe(false);
+    expect(config.browser.screenshot).toBe(true);
     expect(config.baseline).toEqual({
       path: "baseline.json",
       failOn: ["error", "blocking"],

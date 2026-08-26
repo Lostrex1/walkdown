@@ -41,6 +41,7 @@
       "additionalProperties": false,
       "properties": {
         "trace": { "type": "boolean" },
+        "screenshot": { "type": "boolean" },
         "settleMs": { "type": "integer", "minimum": 0, "maximum": 10000 },
         "maxArtifactBytes": {
           "type": "integer",

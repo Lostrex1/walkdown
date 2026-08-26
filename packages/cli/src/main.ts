@@ -23,6 +23,7 @@ import {
   readRunResult,
   renderRunResult,
   runBrowserSession,
+  type Severity,
   type VerificationResult,
   WalkdownError,
   writeBaseline,
@@ -46,6 +47,9 @@ interface ScanOptions extends CommonOptions {
   printConfig?: boolean;
   baseline?: string;
   skipBaseline?: boolean;
+  failOn?: string;
+  disableScreenshots?: boolean;
+  disableTrace?: boolean;
 }
 interface BaselineOptions extends CommonOptions {
   from?: string;
@@ -97,13 +101,28 @@ function simpleOutputFormat(value: string | undefined): "human" | "json" {
   );
 }
 
+function severityPolicy(value: string): Severity[] {
+  const allowed: Severity[] = ["info", "warning", "error", "blocking"];
+  const values = [...new Set(value.split(",").map((item) => item.trim()))];
+  if (
+    values.length === 0 ||
+    values.some((item) => !allowed.includes(item as Severity))
+  )
+    throw new WalkdownError(
+      "INVALID_ARGUMENT",
+      `Invalid failure policy: ${value}`,
+      `Use a comma-separated subset of: ${allowed.join(", ")}.`,
+    );
+  return values as Severity[];
+}
+
 function loadCommandConfig(options: CommonOptions): EffectiveConfig {
   const cli: ConfigOverrides = { outputDir: options.outputDir };
   return loadConfig({ configPath: options.config, cli });
 }
 
 async function scan(targetInput: string, options: ScanOptions): Promise<void> {
-  const config = loadConfig({
+  let config = loadConfig({
     configPath: options.config,
     cli: {
       outputDir: options.outputDir,
@@ -115,6 +134,22 @@ async function scan(targetInput: string, options: ScanOptions): Promise<void> {
         : undefined,
     },
   });
+  if (options.failOn)
+    config = {
+      ...config,
+      baseline: { ...config.baseline, failOn: severityPolicy(options.failOn) },
+    };
+  if (options.disableScreenshots || options.disableTrace)
+    config = {
+      ...config,
+      browser: {
+        ...config.browser,
+        screenshot: options.disableScreenshots
+          ? false
+          : config.browser.screenshot,
+        trace: options.disableTrace ? false : config.browser.trace,
+      },
+    };
   const target = normalizeTarget(targetInput);
   if (options.printConfig) {
     process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
@@ -347,6 +382,12 @@ program
   .option("--max-pages <count>", "Exploration page budget")
   .option("--baseline <path>", "Baseline path relative to output-dir")
   .option("--skip-baseline", "Do not compare this scan with a baseline")
+  .option(
+    "--fail-on <severities>",
+    "Comma-separated severities that fail for new/regressed findings",
+  )
+  .option("--disable-screenshots", "Do not capture page screenshots")
+  .option("--disable-trace", "Do not capture the Playwright trace")
   .option(
     "--print-config",
     "Print the effective, redacted configuration and exit",

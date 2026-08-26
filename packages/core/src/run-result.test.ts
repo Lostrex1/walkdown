@@ -226,7 +226,12 @@ function config(): EffectiveConfig {
     exclude: [],
     allowedOrigins: [],
     viewports: [{ name: "desktop", width: 1440, height: 900 }],
-    browser: { trace: true, settleMs: 100, maxArtifactBytes: 1_000_000 },
+    browser: {
+      trace: true,
+      screenshot: true,
+      settleMs: 100,
+      maxArtifactBytes: 1_000_000,
+    },
     exploration: {
       maxActions: 100,
       crawlTimeoutMs: 60_000,

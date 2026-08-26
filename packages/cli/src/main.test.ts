@@ -55,6 +55,10 @@ describe("walkdown CLI", () => {
         configPath,
         "--timeout-ms",
         "3000",
+        "--fail-on",
+        "warning,error,blocking",
+        "--disable-screenshots",
+        "--disable-trace",
         "--print-config",
       ],
       { env: { ...process.env, WALKDOWN_TIMEOUT_MS: "2000" } },
@@ -62,6 +66,8 @@ describe("walkdown CLI", () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       timeoutMs: 3000,
       maxPages: 3,
+      baseline: { failOn: ["warning", "error", "blocking"] },
+      browser: { screenshot: false, trace: false },
     });
   });
 

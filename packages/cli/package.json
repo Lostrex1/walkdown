@@ -1,13 +1,23 @@
 {
   "name": "walkdown",
   "version": "0.1.0",
-  "private": true,
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lostrex1/walkdown.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "bin": {
     "walkdown": "./dist/main.js"
   },
   "dependencies": {
-    "@walkdown/core": "file:../core",
+    "@walkdown/core": "0.1.0",
     "commander": "^14.0.0"
   }
 }

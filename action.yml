@@ -1,0 +1,82 @@
+name: Walkdown
+description: Evidence-first navigation and runtime checks for pull requests.
+author: Walkdown
+branding:
+  icon: activity
+  color: purple
+inputs:
+  target:
+    description: URL of the already-running application.
+    required: true
+  health-url:
+    description: Optional readiness URL; defaults to target.
+  health-timeout-ms:
+    description: Maximum readiness wait.
+    default: "60000"
+  health-interval-ms:
+    description: Delay between readiness probes.
+    default: "1000"
+  timeout-ms:
+    description: Per-operation Walkdown timeout.
+    default: "30000"
+  command-timeout-ms:
+    description: Maximum CLI/install command duration.
+    default: "300000"
+  config:
+    description: Repository-relative Walkdown config path.
+  baseline:
+    description: Repository-relative reviewed baseline path.
+  fail-on:
+    description: New/regressed severities that fail the check.
+    default: error,blocking
+  cli-version:
+    description: Exact published CLI version. workspace is reserved for dogfooding.
+    default: "0.1.0"
+  install-browser:
+    description: Install Chromium before scanning.
+    default: "true"
+  output-dir:
+    description: Repository-relative result directory.
+    default: .walkdown-ci
+  upload-artifact:
+    description: Upload canonical and derived lightweight results.
+    default: "true"
+  artifact-name:
+    description: Immutable artifact name for this job.
+    default: walkdown-results
+  artifact-retention-days:
+    description: Artifact retention period.
+    default: "7"
+  upload-evidence:
+    description: Include raw evidence beyond lightweight reports.
+    default: "false"
+  screenshots:
+    description: Capture and optionally upload screenshots.
+    default: "false"
+  trace:
+    description: Capture and optionally upload Playwright trace.
+    default: "false"
+  upload-sarif:
+    description: Upload SARIF to Code Scanning when permissions allow (auto or false).
+    default: auto
+  github-token:
+    description: Token used only for optional Code Scanning upload.
+    default: ${{ github.token }}
+outputs:
+  result-path:
+    description: Absolute canonical result path.
+  sarif-path:
+    description: Absolute SARIF result path.
+  verdict:
+    description: pass, fail, or incomplete.
+  run-id:
+    description: Walkdown run identifier.
+  status:
+    description: Canonical run status.
+  artifact-name:
+    description: Uploaded artifact name, when available.
+  sarif-uploaded:
+    description: Whether Code Scanning accepted the SARIF upload.
+runs:
+  using: node24
+  main: packages/action/dist/index.js

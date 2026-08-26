@@ -1,0 +1,10 @@
+{
+  "name": "@walkdown/action",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@actions/artifact": "^6.2.1",
+    "@actions/core": "^3.0.1"
+  }
+}

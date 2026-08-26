@@ -79,6 +79,7 @@ export async function runBrowserSession(options: {
     findings: [],
   };
   let behavior: BehaviorCheckResult = { attempts: [] };
+  let tracingStarted = false;
   let appGraph: AppGraph = {
     schemaVersion: SCHEMA_VERSION,
     target: options.target,
@@ -121,7 +122,10 @@ export async function runBrowserSession(options: {
       userAgent: options.config.browser.userAgent,
     });
     await writer.ensureDirectory();
-    await context.tracing.start({ screenshots: true, snapshots: true });
+    if (options.config.browser.trace) {
+      await context.tracing.start({ screenshots: true, snapshots: true });
+      tracingStarted = true;
+    }
     page = await context.newPage();
     installObservers(page, observe, options.target, trackObserverTask);
     try {
@@ -154,8 +158,10 @@ export async function runBrowserSession(options: {
       );
       pageState.accessibilityPath = "artifacts/accessibility.yaml";
     }
-    const screenshot = await page.screenshot({ fullPage: true });
-    await writer.writeBuffer("initial.png", "screenshot", screenshot);
+    if (options.config.browser.screenshot) {
+      const screenshot = await page.screenshot({ fullPage: true });
+      await writer.writeBuffer("initial.png", "screenshot", screenshot);
+    }
     const graph = await exploreApplication({
       page,
       target: options.target,
@@ -183,7 +189,7 @@ export async function runBrowserSession(options: {
     await writer.writeJson("findings.json", "findings", findings);
   } finally {
     await drainTasks(pendingObserverTasks);
-    if (context) {
+    if (context && tracingStarted) {
       try {
         await context.tracing.stop({ path: writer.artifactPath("trace.zip") });
         await writer.registerFile("trace.zip", "trace");

@@ -6,7 +6,7 @@ The project is specification-driven. Product requirements, architecture decision
 
 ## Status
 
-The project has implemented **007 · baseline, focused verification, and regression**. The final MVP implementation milestone is **008 · GitHub Action and pull-request experience**.
+The **001–008 MVP is complete**, including the GitHub Action and pull-request experience. The next specified priority is the optional Preflight integration in 015.
 
 ## Principles
 
@@ -45,6 +45,8 @@ After exploration, Walkdown evaluates deterministic navigation and runtime check
 Walkdown also probes authorized safe controls in isolated pages, compares normalized before/after state, measures every configured viewport, performs center-point hit testing, inventories accessible names, traverses focus with real Tab events, and checks modal focus behavior. Generic button clicks require explicit permission and uncertain attempts remain evidence without becoming failures. See [Interaction, responsive, and functional accessibility checks](docs/behavior-checks.md) for effect semantics, rule IDs, safety policy, and configuration.
 
 Reviewed debt can be stored explicitly with `walkdown baseline`. Later scans classify findings as new, persistent, regressed, ignored, or inconclusive and report fixed baseline entries separately. `walkdown verify <fingerprint>` re-observes one finding with a semantic recipe and tri-state result; `walkdown regression` applies the baseline policy with a conservative full-scan fallback. See [Baseline, verification, and regression](docs/baseline-and-verification.md).
+
+GitHub workflows can use `Lostrex1/walkdown@v1` against an application they start in the same job. The Action performs bounded readiness checks, pins CLI semantics, produces a Job Summary and annotations, retains JSON/SARIF even on findings, and safely skips Code Scanning writes for untrusted forks or insufficient permissions. Screenshots, traces, and raw evidence remain opt-in. See [GitHub Action](docs/github-action.md).
 
 ## License
 

@@ -11,20 +11,17 @@ El roadmap prioriza un vertical slice demostrable: explorar una aplicación real
 5. **005 · Checks de interacción, responsive y accesibilidad funcional** — encuentra controles muertos, tapados, overflow y fallos básicos de teclado.
 6. **006 · Findings, artefactos y outputs agent-native** — produce evidencia y contratos en terminal, JSON, JSONL, Markdown y SARIF.
 7. **007 · Baseline, verificación focalizada y regresión** — distingue deuda conocida, confirma arreglos y detecta reapariciones.
+8. **008 · GitHub Action y experiencia de pull request** — integra Walkdown en CI y publica resultados y artefactos accionables.
 
 ## Siguiente
 
-8. **008 · GitHub Action y experiencia de pull request** — integra Walkdown en CI y publica resultados y artefactos accionables.
+15. **015 · Integración opcional con Preflight** — combina launch-readiness y runtime QA en un informe y loop de agentes comunes mediante un adaptador, sin incluir ni reimplementar Preflight.
 
 ## MVP — orden comprometido
 
 El MVP termina cuando `001`–`008` satisfacen sus criterios y la demo completa scan → agent task → fix → verify → regression es reproducible.
 
 ## Evolución especificada
-
-**Primera prioridad después del MVP:**
-
-15. **015 · Integración opcional con Preflight** — combina launch-readiness y runtime QA en un informe y loop de agentes comunes mediante un adaptador, sin incluir ni reimplementar Preflight.
 
 **Resto de evolución, pendiente de repriorización tras aprender del MVP:**
 
