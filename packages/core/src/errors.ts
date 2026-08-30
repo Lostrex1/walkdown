@@ -4,6 +4,7 @@ export type WalkdownErrorCode =
   | "UNSUPPORTED_SCHEMA_VERSION"
   | "BROWSER_UNAVAILABLE"
   | "NAVIGATION_FAILED"
+  | "CANCELLED"
   | "FILESYSTEM_ERROR";
 
 export class WalkdownError extends Error {

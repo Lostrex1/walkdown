@@ -6,7 +6,7 @@ The project is specification-driven. Product requirements, architecture decision
 
 ## Status
 
-The **001–008 MVP is complete**, including the GitHub Action and pull-request experience. The next specified priority is the optional Preflight integration in 015.
+The implementation of the **001–008 MVP** exists, but its validation is currently reopened by the [2026-08-28 audit](spec/reviews/2026-08-28-code-audit.md). Remediation and a reproducible end-to-end demo take priority over the optional Preflight integration in 015.
 
 ## Principles
 
@@ -30,13 +30,13 @@ npm test
 npm run dev -- scan http://localhost:3000
 ```
 
-`walkdown scan <url>` opens the target in Chromium and persists a local run. It captures initial navigation, console and page errors, requests/responses, dialogs, downloads, popups, a screenshot, an accessibility snapshot and a trace. Runs are written under `.walkdown/runs/` by default. Chromium is never installed by the CLI: install it explicitly for local development with `npx playwright install chromium`.
+`walkdown scan <url>` opens the target in Chromium and persists a local run. It captures initial navigation, console and page errors, requests/responses, dialogs, downloads, popups and an accessibility snapshot. Screenshots and Playwright traces can contain information that cannot be redacted, so they are disabled by default and require explicit configuration opt-in. Runs are written under `.walkdown/runs/` by default. Chromium is never installed by the CLI: install it explicitly for local development with `npx playwright install chromium`.
 
 Configuration is loaded from `walkdown.config.yaml`. See [walkdown.config.example.yaml](walkdown.config.example.yaml) and [schemas/config.schema.json](schemas/config.schema.json). Precedence is CLI flags, then `WALKDOWN_OUTPUT_DIR`, `WALKDOWN_TIMEOUT_MS`, and `WALKDOWN_MAX_PAGES`, then the config file, then defaults. Use `--print-config` to inspect the effective non-sensitive configuration.
 
 Human output is sent to stdout. `--format` supports `human`, `json`, `jsonl`, `markdown`, `sarif`, and `agent`; `--quiet` emits canonical JSON. Every successful browser session also writes the canonical `result.json` inside its run directory. Diagnostics and errors go to stderr. See [RunResult and output formats](docs/outputs.md) for contracts, provenance, evidence links, and exit semantics.
 
-Browser capture defaults to a 100 ms settle window and 10 MB maximum size per artifact. Configure these limits under `browser` in `walkdown.config.yaml`; oversized artifacts are omitted explicitly in the run manifest rather than silently truncated. Evidence paths in that manifest always use `/` relative to the run directory and sensitive token-like values are redacted before persistence.
+Browser capture defaults to a 100 ms settle window and 10 MB maximum size per artifact. Configure these limits under `browser` in `walkdown.config.yaml`; oversized artifacts are omitted explicitly in the run manifest rather than silently truncated. Evidence paths in that manifest always use `/` relative to the run directory and sensitive token-like values are redacted before persistence. URLs with embedded credentials are rejected; screenshots and traces are private opt-in binary evidence and cannot be redacted after capture.
 
 Walkdown explores with deterministic breadth-first traversal. It follows only same-origin GET links by default and saves `artifacts/app-graph.json` with coverage, pending routes and skipped actions. URLs lose fragments, tracking query parameters (`utm_*`, `fbclid`, `gclid`) and have their remaining query parameters sorted. Buttons, form controls, uploads, downloads, unknown controls, external links and actions matching protected vocabulary such as delete, pay, send, publish, invite or logout are never activated by default. Configure budgets under `exploration`; reaching one is reported as incomplete coverage, never as a complete scan.
 

@@ -19,8 +19,10 @@
     "format": "biome format --write .",
     "pretest": "npm run build",
     "test": "vitest run",
-    "test:unit": "vitest run",
-    "test:e2e": "vitest run --passWithNoTests",
+    "test:unit": "vitest run packages/core/src/config.test.ts packages/core/src/run-result.test.ts packages/core/src/baseline.test.ts packages/core/src/run-store.test.ts packages/core/src/run-lifecycle.test.ts packages/core/src/rules.test.ts",
+    "test:integration": "vitest run packages/core/src/browser-session.test.ts packages/core/src/behavior-checker.test.ts packages/action/src/lib.test.ts",
+    "test:e2e": "vitest run packages/cli/src/main.test.ts --passWithNoTests",
+    "demo:mvp": "npm run test:e2e",
     "check": "npm run typecheck && npm run lint && npm run build"
   },
   "devDependencies": {

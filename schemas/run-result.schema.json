@@ -60,6 +60,19 @@
       "type": "array",
       "items": { "$ref": "#/definitions/evidence" }
     },
+    "ruleManifest": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["version", "enabled", "outcome"],
+        "properties": {
+          "version": { "type": "string", "minLength": 1 },
+          "enabled": { "type": "boolean" },
+          "outcome": { "enum": ["completed", "skipped"] }
+        }
+      }
+    },
     "comparison": { "type": "object" }
   },
   "definitions": {

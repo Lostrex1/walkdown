@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { redactValue } from "./artifact-writer.js";
 import type { EffectiveConfig, Run, RunStatus } from "./contracts.js";
 import { SCHEMA_VERSION } from "./contracts.js";
 
@@ -23,11 +24,11 @@ export class RunStore {
     const run: Run = {
       schemaVersion: SCHEMA_VERSION,
       runId,
-      target,
+      target: redactValue(target),
       startedAt: new Date().toISOString(),
       status: "running",
       version: this.version,
-      config,
+      config: redactValue(config),
     };
     await mkdir(directory, { recursive: true });
     await this.writeAtomic(filePath, run);

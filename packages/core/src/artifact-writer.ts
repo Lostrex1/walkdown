@@ -1,12 +1,48 @@
-import { mkdir, stat, unlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import type { EvidenceRef, Observation } from "./contracts.js";
 
+const sensitiveKey =
+  /(?:token|password|secret|api[_-]?key|access[_-]?key|authorization|cookie|session|credential)/i;
 const sensitiveValue =
-  /((?:token|password|secret|api[_-]?key)\s*[=:]\s*)[^\s,;]+/gi;
+  /((?:token|password|secret|api[_-]?key|access[_-]?key|authorization|cookie|session)\s*[=:]\s*)[^\s,;]+/gi;
+const bearerValue = /\bBearer\s+[A-Za-z0-9._~+\/-]+=*/gi;
+const jwtValue = /\beyJ[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){2}\b/g;
+const urlValue = /https?:\/\/[^\s"'<>]+/gi;
 
 export function redactText(value: string): string {
-  return value.replace(sensitiveValue, "$1[REDACTED]");
+  return value
+    .replace(urlValue, redactUrl)
+    .replace(bearerValue, "Bearer [REDACTED]")
+    .replace(jwtValue, "[REDACTED]")
+    .replace(sensitiveValue, "$1[REDACTED]");
+}
+
+/** Redact before any public or persisted JSON serialization. */
+export function redactValue<T>(value: T): T {
+  if (typeof value === "string") return redactText(value) as T;
+  if (Array.isArray(value)) return value.map(redactValue) as T;
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [
+        key,
+        sensitiveKey.test(key) ? "[REDACTED]" : redactValue(nested),
+      ]),
+    ) as T;
+  return value;
+}
+
+function redactUrl(candidate: string): string {
+  try {
+    const url = new URL(candidate);
+    url.username = "";
+    url.password = "";
+    for (const key of [...url.searchParams.keys()])
+      if (sensitiveKey.test(key)) url.searchParams.set(key, "[REDACTED]");
+    return url.toString();
+  } catch {
+    return candidate;
+  }
 }
 
 export class ArtifactWriter {
@@ -41,13 +77,15 @@ export class ArtifactWriter {
     value: string,
   ): Promise<void> {
     const path = this.artifactPath(name);
-    const bytes = Buffer.byteLength(value);
+    const redacted = redactText(value);
+    const bytes = Buffer.byteLength(redacted);
     if (bytes > this.maxBytes) {
       this.omissions.push(`${name}: exceeded ${this.maxBytes} byte limit`);
       return;
     }
     await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, value, "utf8");
+    await writeFile(path, redacted, { encoding: "utf8", mode: 0o600 });
+    await chmod(path, 0o600).catch(() => undefined);
     this.evidence.push({
       type,
       path: this.relativePath(path),
@@ -67,7 +105,8 @@ export class ArtifactWriter {
       return;
     }
     await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, value);
+    await writeFile(path, value, { mode: 0o600 });
+    await chmod(path, 0o600).catch(() => undefined);
     this.evidence.push({
       type,
       path: this.relativePath(path),
@@ -100,9 +139,10 @@ export class ArtifactWriter {
     await mkdir(dirname(path), { recursive: true });
     await writeFile(
       path,
-      `${JSON.stringify({ evidence: this.evidence, omissions: this.omissions, observationCount: observations.length }, null, 2)}\n`,
-      "utf8",
+      `${JSON.stringify(redactValue({ evidence: this.evidence, omissions: this.omissions, observationCount: observations.length }), null, 2)}\n`,
+      { encoding: "utf8", mode: 0o600 },
     );
+    await chmod(path, 0o600).catch(() => undefined);
   }
 
   private relativePath(path: string): string {

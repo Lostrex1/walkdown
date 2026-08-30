@@ -44,11 +44,9 @@ export async function executeRun(
     );
     return { run, filePath: created.filePath };
   } catch (error) {
-    await store.finish(
-      created.filePath,
-      created.run,
-      interrupted ? "cancelled" : "incomplete",
-    );
+    const status = interrupted ? "cancelled" : "incomplete";
+    const run = await store.finish(created.filePath, created.run, status);
+    if (interrupted) return { run, filePath: created.filePath };
     throw error;
   } finally {
     signalSource.removeListener("SIGINT", cancel);

@@ -40,6 +40,8 @@ export async function exploreApplication(options: {
   const startedAt = performance.now();
   let actionCount = 0;
   let skippedActions = 0;
+  let skippedByPolicy = 0;
+  let budgetExhausted = 0;
   const budgetLimits = new Set<string>();
 
   while (queue.length > 0) {
@@ -68,7 +70,16 @@ export async function exploreApplication(options: {
       });
       if (options.config.browser.settleMs > 0)
         await options.page.waitForTimeout(options.config.browser.settleMs);
-    } catch {
+    } catch (error) {
+      const cancelled = options.signal.aborted;
+      const timedOut = error instanceof Error && /timeout/i.test(error.message);
+      stopReasons.push(
+        cancelled
+          ? "cancelled"
+          : timedOut
+            ? "navigation-timeout"
+            : "navigation-failed",
+      );
       routes.push({
         url: current.url,
         depth: current.depth,
@@ -76,6 +87,11 @@ export async function exploreApplication(options: {
         stateSignature: "navigation-failed",
         elements: [],
         actions: [],
+        navigationStatus: cancelled
+          ? "cancelled"
+          : timedOut
+            ? "timed-out"
+            : "navigation-failed",
       });
       continue;
     }
@@ -88,6 +104,7 @@ export async function exploreApplication(options: {
       if (actionCount > options.config.exploration.maxActions) {
         outcome = "budget-exhausted";
         skippedActions += 1;
+        budgetExhausted += 1;
         budgetLimits.add("max-actions");
       } else if (
         decision.risk === "safe" &&
@@ -103,10 +120,12 @@ export async function exploreApplication(options: {
         ) {
           decision.reason = "query-variant budget reached";
           skippedActions += 1;
+          budgetExhausted += 1;
           budgetLimits.add("max-query-variants-per-path");
         } else if (current.depth >= options.config.maxDepth) {
           decision.reason = "max-depth reached";
           skippedActions += 1;
+          budgetExhausted += 1;
           budgetLimits.add("max-depth");
         } else if (queued.has(destination)) {
           decision.reason = "already discovered";
@@ -118,8 +137,12 @@ export async function exploreApplication(options: {
           queued.add(destination);
           outcome = "queued";
         }
+      } else if (decision.risk === "safe" && candidate.kind === "click") {
+        // The behavior checker owns execution, but the action is scheduled now.
+        outcome = "queued";
       } else {
         skippedActions += 1;
+        skippedByPolicy += 1;
       }
       actions.push({
         id: `action-${current.depth}-${actions.length + 1}`,
@@ -139,6 +162,7 @@ export async function exploreApplication(options: {
       stateSignature: signature(extracted.map((item) => item.element)),
       elements: extracted.map((item) => item.element),
       actions,
+      navigationStatus: "visited",
     });
   }
 
@@ -158,6 +182,8 @@ export async function exploreApplication(options: {
       pendingRoutes: queue.map((item) => item.url),
       skippedActions,
       stopReasons: [...stopReasons, ...budgetLimits],
+      skippedByPolicy,
+      budgetExhausted,
     },
   };
 }

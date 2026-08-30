@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { readdir, stat } from "node:fs/promises";
+import { platform } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 
@@ -23,6 +24,11 @@ export interface ActionResult {
     discoveredPages: number;
     skippedActions: number;
     stopReasons: string[];
+    skippedByPolicy?: number;
+    budgetExhausted?: number;
+    attemptedActions?: number;
+    executedActions?: number;
+    inconclusiveActions?: number;
   };
   summary: {
     verdict: "pass" | "fail" | "incomplete";
@@ -64,6 +70,7 @@ export async function runCommand(
       env: process.env,
       shell: false,
       windowsHide: true,
+      detached: platform() !== "win32",
     });
     let stdout = "";
     let stderr = "";
@@ -71,7 +78,7 @@ export async function runCommand(
     const rejectAndStop = (error: Error) => {
       if (settled) return;
       settled = true;
-      child.kill();
+      void terminateProcessTree(child.pid);
       reject(error);
     };
     const onAbort = () => rejectAndStop(new Error("Command cancelled."));
@@ -91,6 +98,29 @@ export async function runCommand(
       accept({ exitCode: code ?? 4, stdout, stderr });
     });
   });
+}
+
+/** Stop the entire CLI/Playwright tree, not just the shell/npm parent. */
+async function terminateProcessTree(pid: number | undefined): Promise<void> {
+  if (!pid) return;
+  if (platform() === "win32") {
+    await new Promise<void>((resolve) => {
+      const killer = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], {
+        windowsHide: true,
+        stdio: "ignore",
+      });
+      killer.once("close", () => resolve());
+      killer.once("error", () => resolve());
+    });
+    return;
+  }
+  try {
+    process.kill(-pid, "SIGTERM");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    process.kill(-pid, "SIGKILL");
+  } catch {
+    // The process may have already exited between timeout/abort and cleanup.
+  }
 }
 
 export async function waitForHealth(
@@ -164,6 +194,10 @@ export function renderActionSummary(result: ActionResult): string {
       (finding) =>
         `- **${finding.severity}** \`${finding.ruleId}\` on \`${redactUrl(finding.route)}\`: ${finding.message}`,
     );
+  const actionLedger =
+    result.coverage.attemptedActions === undefined
+      ? `${result.coverage.skippedActions} actions omitted`
+      : `${result.coverage.executedActions ?? 0} executed; ${result.coverage.inconclusiveActions ?? 0} inconclusive; ${result.coverage.skippedByPolicy ?? 0} skipped by policy; ${result.coverage.budgetExhausted ?? 0} budget-exhausted`;
   return [
     `# Walkdown: ${result.summary.verdict.toUpperCase()}`,
     "",
@@ -171,7 +205,7 @@ export function renderActionSummary(result: ActionResult): string {
     `Run: \`${result.run.runId}\``,
     `Findings: ${result.summary.findingCount} (blocking ${result.summary.blockers}, error ${result.summary.bySeverity.error}, warning ${result.summary.bySeverity.warning})`,
     `Delta: ${delta}`,
-    `Coverage: ${result.coverage.status}; ${result.coverage.visitedPages}/${result.coverage.discoveredPages} pages visited; ${result.coverage.skippedActions} unsafe or unknown actions skipped.`,
+    `Coverage: ${result.coverage.status}; ${result.coverage.visitedPages}/${result.coverage.discoveredPages} pages visited; ${actionLedger}.`,
     "",
     "## Blocking evidence",
     "",

@@ -161,6 +161,35 @@ describe("baseline and comparison", () => {
     });
   });
 
+  it("detects a rule migration even when the current run has no findings", () => {
+    const initial = runResult([finding("stable-fingerprint")]);
+    initial.ruleManifest = {
+      "runtime.page-error": {
+        version: "1",
+        enabled: true,
+        outcome: "completed",
+      },
+    };
+    const baseline = createBaseline(initial, { now });
+    const current = runResult([]);
+    current.ruleManifest = {
+      "runtime.page-error": {
+        version: "2",
+        enabled: true,
+        outcome: "completed",
+      },
+    };
+    const compared = compareWithBaseline(current, baseline, { now: later });
+    expect(compared.summary.verdict).toBe("incomplete");
+    expect(compared.comparison?.migrations).toContainEqual(
+      expect.objectContaining({
+        ruleId: "runtime.page-error",
+        currentVersion: "2",
+      }),
+    );
+    expect(compared.comparison?.counts.fixed).toBe(0);
+  });
+
   it("keeps irrelevant changes stable and validates verification results", async () => {
     const corpus = JSON.parse(
       await readFile(
@@ -281,6 +310,58 @@ describe("baseline and comparison", () => {
     expect(inconclusive).toMatchObject({
       outcome: "inconclusive",
       reason: "The original semantic element was not reached.",
+    });
+  });
+
+  it("never returns PASS for an interaction finding whose original action was not executed", () => {
+    const source = finding("action-fingerprint", "interaction.dead-control");
+    source.verification.element = {
+      role: "button",
+      name: "Save",
+      context: "main",
+    };
+    source.verification.action = { kind: "click", risk: "safe" };
+    const appGraph = {
+      schemaVersion: 1 as const,
+      target: source.route,
+      routes: [
+        {
+          url: source.route,
+          depth: 0,
+          title: "Fixture",
+          stateSignature: "stable",
+          elements: [
+            {
+              id: "save",
+              role: "button",
+              name: "Save",
+              attributes: {},
+              context: "main",
+              visible: true,
+            },
+          ],
+          actions: [],
+        },
+      ],
+      coverage: {
+        status: "complete" as const,
+        visitedPages: 1,
+        discoveredPages: 1,
+        pendingRoutes: [],
+        skippedActions: 0,
+        stopReasons: [],
+      },
+    };
+    const verification = evaluateWalkdownVerification({
+      sourceFinding: source,
+      sourceRunId: "source",
+      verificationResult: runResult([]),
+      appGraph,
+      behavior: { attempts: [] },
+    });
+    expect(verification).toMatchObject({
+      outcome: "inconclusive",
+      reason: "The original action was not executed conclusively.",
     });
   });
 });
