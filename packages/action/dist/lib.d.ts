@@ -20,6 +20,11 @@ export interface ActionResult {
         discoveredPages: number;
         skippedActions: number;
         stopReasons: string[];
+        skippedByPolicy?: number;
+        budgetExhausted?: number;
+        attemptedActions?: number;
+        executedActions?: number;
+        inconclusiveActions?: number;
     };
     summary: {
         verdict: "pass" | "fail" | "incomplete";

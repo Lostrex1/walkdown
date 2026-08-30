@@ -39,9 +39,18 @@ export async function runBrowserSession(options: {
   runDirectory: string;
   config: EffectiveConfig;
   signal: AbortSignal;
+  focus?: {
+    routeUrl: string;
+    element: Pick<import("./contracts.js").ElementRef, "role" | "name" | "context">;
+    action: Pick<import("./contracts.js").CandidateAction, "kind" | "risk">;
+  };
 }): Promise<BrowserSessionResult> {
   if (options.signal.aborted)
-    throw new Error("Browser session cancelled before launch.");
+    throw new WalkdownError(
+      "CANCELLED",
+      "Browser session cancelled before launch.",
+      "The run was cancelled and can be started again.",
+    );
   const writer = new ArtifactWriter(
     options.runDirectory,
     options.config.browser.maxArtifactBytes,
@@ -127,6 +136,7 @@ export async function runBrowserSession(options: {
       tracingStarted = true;
     }
     page = await context.newPage();
+    await validateDynamicSelectors(page, options.config);
     installObservers(page, observe, options.target, trackObserverTask);
     try {
       await page.goto(options.target, {
@@ -134,7 +144,13 @@ export async function runBrowserSession(options: {
         timeout: options.config.timeoutMs,
       });
     } catch (error) {
-      if (options.signal.aborted) throw error;
+      if (options.signal.aborted)
+        throw new WalkdownError(
+          "CANCELLED",
+          "Browser session cancelled during initial navigation.",
+          "The run was cancelled and can be started again.",
+          error,
+        );
       throw new WalkdownError(
         "NAVIGATION_FAILED",
         `Unable to navigate to ${options.target}.`,
@@ -177,7 +193,15 @@ export async function runBrowserSession(options: {
       config: options.config,
       signal: options.signal,
       observe,
+      focus: options.focus,
     });
+    reconcileActionLedger(graph, behavior);
+    if (options.signal.aborted)
+      throw new WalkdownError(
+        "CANCELLED",
+        "Browser session cancelled during exploration.",
+        "The run was cancelled and can be started again.",
+      );
     findings = evaluateRules({
       target: options.target,
       observations,
@@ -213,6 +237,46 @@ export async function runBrowserSession(options: {
     appGraph,
     omissions: writer.omissions,
   };
+}
+
+async function validateDynamicSelectors(
+  page: Page,
+  config: EffectiveConfig,
+): Promise<void> {
+  for (const selector of config.checks.interaction.dynamicSelectors) {
+    try {
+      await page.locator(selector).count();
+    } catch (error) {
+      throw new WalkdownError(
+        "INVALID_CONFIG",
+        `Invalid checks.interaction.dynamicSelectors selector: ${selector}.`,
+        "Correct the CSS selector before running Walkdown.",
+        error,
+      );
+    }
+  }
+}
+
+function reconcileActionLedger(
+  graph: AppGraph,
+  behavior: BehaviorCheckResult,
+): void {
+  const attempted = behavior.attempts.length;
+  const executed = behavior.attempts.filter(
+    (attempt) => attempt.outcome === "pass" || attempt.outcome === "fail",
+  ).length;
+  const inconclusive = behavior.attempts.filter(
+    (attempt) => attempt.outcome === "inconclusive",
+  ).length;
+  graph.coverage.attemptedActions = attempted;
+  graph.coverage.executedActions = executed;
+  graph.coverage.inconclusiveActions = inconclusive;
+  graph.coverage.skippedActions = graph.routes
+    .flatMap((route) => route.actions)
+    .filter(
+      (action) =>
+        action.outcome === "skipped" || action.outcome === "budget-exhausted",
+    ).length;
 }
 
 function installObservers(

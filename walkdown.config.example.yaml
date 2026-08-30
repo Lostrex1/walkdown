@@ -15,8 +15,9 @@ viewports:
     width: 390
     height: 844
 browser:
-  trace: true
-  screenshot: true
+  # Binary evidence cannot be redacted; enable only after reviewing its sensitivity.
+  trace: false
+  screenshot: false
   settleMs: 100
   maxArtifactBytes: 10000000
 exploration:
@@ -85,3 +86,5 @@ checks:
       - "*/analytics*"
       - "*/collect*"
       - "*google-analytics.com*"
+      - "*/poll*"
+      - "*/heartbeat*"

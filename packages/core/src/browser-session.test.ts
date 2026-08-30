@@ -139,7 +139,10 @@ describe("BrowserSession", () => {
     const target = await startFixture();
     const config = loadConfig({
       cwd: directory,
-      cli: { outputDir: directory, browser: { settleMs: 250 } },
+      cli: {
+        outputDir: directory,
+        browser: { settleMs: 250, screenshot: true, trace: true },
+      },
     });
     const result = await runBrowserSession({
       target,

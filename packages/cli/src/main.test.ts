@@ -80,6 +80,38 @@ describe("walkdown CLI", () => {
     });
   });
 
+  it("uses invocation exit code for Commander errors and validates output before early exits", async () => {
+    const missingArgument = await execAllowFailure([cliPath, "scan"]);
+    expect(missingArgument.code).toBe(3);
+    expect(missingArgument.stderr).toContain("required argument");
+    const unknownOption = await execAllowFailure([
+      cliPath,
+      "scan",
+      "https://example.test",
+      "--not-an-option",
+    ]);
+    expect(unknownOption.code).toBe(3);
+    const invalidQuietFormat = await execAllowFailure([
+      cliPath,
+      "scan",
+      "https://example.test",
+      "--quiet",
+      "--format",
+      "nonsense",
+    ]);
+    expect(invalidQuietFormat.code).toBe(3);
+    const missingConfig = await execAllowFailure([
+      cliPath,
+      "scan",
+      "https://example.test",
+      "--config",
+      "definitely-missing.yaml",
+      "--print-config",
+    ]);
+    expect(missingConfig.code).toBe(3);
+    expect(missingConfig.stderr).toContain("does not exist");
+  });
+
   it("writes a normalized, completed run in machine-readable mode", async () => {
     const directory = await mkdtemp(join(tmpdir(), "walkdown-cli-"));
     directories.push(directory);
@@ -132,11 +164,12 @@ describe("walkdown CLI", () => {
     ).resolves.toContain("# Walkdown: PASS");
   }, 20_000);
 
-  it("accepts persistent debt, verifies one finding, and runs regression", async () => {
+  it("demonstrates scan, repair, focused verify PASS, and regression without new findings", async () => {
     const directory = await mkdtemp(join(tmpdir(), "walkdown-cli-"));
     directories.push(directory);
+    let defectPresent = true;
     const server = createServer((request, response) => {
-      if (request.url === "/error") {
+      if (request.url === "/error" && defectPresent) {
         response.writeHead(503, { "content-type": "text/plain" });
         response.end("unavailable");
         return;
@@ -198,19 +231,14 @@ describe("walkdown CLI", () => {
       )?.state,
     ).toBe("persistent");
 
-    const verification = await execAllowFailure([
-      cliPath,
-      "verify",
-      fingerprint,
-      "--output-dir",
-      directory,
-      "--format",
-      "json",
+    // Equivalent to the agent applying the repair after receiving the finding.
+    defectPresent = false;
+    const verification = await execFile(process.execPath, [
+      cliPath, "verify", fingerprint, "--output-dir", directory, "--format", "json",
     ]);
-    expect(verification.code).toBe(1);
     expect(JSON.parse(verification.stdout)).toMatchObject({
       fingerprint,
-      outcome: "fail",
+      outcome: "pass",
       executor: { provider: "walkdown" },
     });
 
@@ -223,7 +251,7 @@ describe("walkdown CLI", () => {
       summary: { verdict: "pass" },
       comparison: {
         regression: { mode: "full" },
-        counts: { persistent: expect.any(Number) },
+        counts: { fixed: expect.any(Number), new: 0, regressed: 0 },
       },
     });
   }, 30_000);

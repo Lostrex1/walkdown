@@ -20,7 +20,7 @@ Crear una abstracción `BrowserSession` que exponga eventos de dominio y no obje
 - **Playwright aislado tras un puerto interno** — facilita testear y añadir navegadores sin contaminar reglas.
 - **Observaciones append-only** — preservan la trayectoria; las vistas derivadas no reescriben hechos.
 - **Redacción previa a persistencia** — se descarta guardar todo y limpiar después porque amplía el riesgo de filtración.
-- **Trace bajo demanda en CI, activo por defecto en desarrollo inicial** — permite ajustar coste después de medir.
+- **Screenshots y trace bajo demanda** — son binarios que no se pueden redactar de forma fiable; permanecen desactivados hasta un opt-in informado.
 - **Sin `networkidle` como señal de estabilidad** — se usa una ventana de asentamiento acotada y eventos observables.
 
 ## Riesgos

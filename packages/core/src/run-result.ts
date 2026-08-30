@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { rename, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
-import { redactText } from "./artifact-writer.js";
+import { redactValue } from "./artifact-writer.js";
 import type {
   AppGraph,
   CandidateAction,
@@ -17,15 +17,16 @@ import type {
   RunResult,
   Severity,
 } from "./contracts.js";
-import { SCHEMA_VERSION } from "./contracts.js";
+import { RULE_IDS, SCHEMA_VERSION } from "./contracts.js";
 import {
   renderAgentPrompt,
   renderJsonl,
   renderMarkdown,
   toSarif,
 } from "./reporters.js";
+import { RULE_VERSIONS } from "./baseline.js";
+import { validateRunResult } from "./contracts-validation.js";
 
-const sensitiveKey = /(?:token|password|secret|api[_-]?key)/i;
 
 interface Guidance {
   confidence: FindingConfidence;
@@ -182,6 +183,16 @@ export function assembleRunResult(options: {
     },
     findings,
     evidence,
+    ruleManifest: Object.fromEntries(
+      RULE_IDS.map((ruleId) => [
+        ruleId,
+        {
+          version: RULE_VERSIONS[ruleId],
+          enabled: options.run.config.checks.rules[ruleId].enabled,
+          outcome: "completed" as const,
+        },
+      ]),
+    ),
   });
 }
 
@@ -189,6 +200,7 @@ export async function writeRunResult(
   runDirectory: string,
   result: RunResult,
 ): Promise<string> {
+  validateRunResult(result);
   const filePath = join(runDirectory, "result.json");
   const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
   await writeFile(temporaryPath, `${JSON.stringify(result, null, 2)}\n`, {
@@ -227,6 +239,7 @@ function publishFinding(
   evidence: readonly PublishedEvidenceRef[],
 ): PublishedFinding {
   const details = guidance[finding.ruleId];
+  const { samples, ...publicFinding } = finding;
   const { element, action } = relatedControl(
     finding.samples,
     finding.route,
@@ -238,7 +251,7 @@ function publishFinding(
     ),
   );
   return {
-    ...finding,
+    ...publicFinding,
     source: {
       provider: "walkdown",
       providerVersion: run.version,
@@ -253,7 +266,7 @@ function publishFinding(
       finding.message,
       `Observed ${finding.occurrenceCount} time${finding.occurrenceCount === 1 ? "" : "s"} on ${finding.route}.`,
     ],
-    observations: finding.samples,
+    observations: samples,
     evidence: focusedEvidence,
     inference: details.inference,
     repair: {
@@ -358,18 +371,4 @@ function assertPortablePath(path: string): void {
     normalized.includes("/../")
   )
     throw new Error(`Evidence path must be relative to the run: ${path}`);
-}
-
-function redactValue<T>(value: T): T {
-  if (typeof value === "string") return redactText(value) as T;
-  if (Array.isArray(value)) return value.map(redactValue) as T;
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, nested]) => [
-        key,
-        sensitiveKey.test(key) ? "[REDACTED]" : redactValue(nested),
-      ]),
-    ) as T;
-  }
-  return value;
 }

@@ -40,14 +40,21 @@ export async function runBehaviorChecks(options: {
   config: EffectiveConfig;
   signal: AbortSignal;
   observe: Observe;
+  focus?: {
+    routeUrl: string;
+    element: Pick<ElementRef, "role" | "name" | "context">;
+    action: Pick<CandidateAction, "kind" | "risk">;
+  };
 }): Promise<BehaviorCheckResult> {
   const attempts: InteractionAttempt[] = [];
   const primaryViewport = options.config.viewports[0];
   if (primaryViewport) {
     for (const route of options.appGraph.routes) {
-      const safeActions = route.actions
-        .filter(isSafeClick)
-        .slice(0, options.config.checks.interaction.maxControlsPerPage);
+      const safeActions = options.focus
+        ? focusedActions(route.actions, route.url, options.focus)
+        : route.actions
+            .filter(isSafeClick)
+            .slice(0, options.config.checks.interaction.maxControlsPerPage);
       for (const action of safeActions) {
         if (options.signal.aborted) return { attempts };
         const attempt = await probeInteraction({
@@ -56,6 +63,8 @@ export async function runBehaviorChecks(options: {
           action,
           viewport: primaryViewport,
         });
+        action.outcome =
+          attempt.outcome === "inconclusive" ? "inconclusive" : "executed";
         attempts.push(attempt);
         options.observe("interaction-attempt", { ...attempt });
       }
@@ -92,6 +101,23 @@ export async function runBehaviorChecks(options: {
   return { attempts };
 }
 
+function focusedActions(
+  actions: readonly CandidateAction[],
+  routeUrl: string,
+  focus: NonNullable<Parameters<typeof runBehaviorChecks>[0]["focus"]>,
+): CandidateAction[] {
+  if (routeUrl !== focus.routeUrl) return [];
+  const action = actions.find(
+    (candidate) =>
+      candidate.kind === focus.action.kind &&
+      candidate.risk === focus.action.risk &&
+      candidate.element.role === focus.element.role &&
+      candidate.element.name === focus.element.name &&
+      candidate.element.context === focus.element.context,
+  );
+  return action && isSafeClick(action) ? [action] : [];
+}
+
 async function probeInteraction(options: {
   context: BrowserContext;
   config: EffectiveConfig;
@@ -106,8 +132,12 @@ async function probeInteraction(options: {
     width: options.viewport.width,
     height: options.viewport.height,
   });
-  const allRequests = new Set<string>();
-  const postActionRequests: string[] = [];
+  const postActionRequests: Array<{
+    url: string;
+    method: string;
+    resourceType: string;
+    sequence: number;
+  }> = [];
   let actionStarted = false;
   let dialogObserved = false;
   let downloadObserved = false;
@@ -115,8 +145,13 @@ async function probeInteraction(options: {
   const popups: Page[] = [];
   const dialogTasks = new Set<Promise<void>>();
   page.on("request", (request) => {
-    allRequests.add(request.url());
-    if (actionStarted) postActionRequests.push(request.url());
+    if (actionStarted)
+      postActionRequests.push({
+        url: request.url(),
+        method: request.method(),
+        resourceType: request.resourceType(),
+        sequence: postActionRequests.length + 1,
+      });
   });
   page.on("dialog", (dialog) => {
     dialogObserved = true;
@@ -168,7 +203,6 @@ async function probeInteraction(options: {
         before,
         reason: "page state was unstable before the action",
       };
-    const baselineRequests = new Set(allRequests);
     const triggerFocus = await locator.evaluate(focusIdentity);
     actionStarted = true;
     try {
@@ -198,7 +232,6 @@ async function probeInteraction(options: {
       before,
       after,
       triggerFocus,
-      baselineRequests,
       postActionRequests,
       ignoreRequestPatterns:
         options.config.checks.interaction.ignoreRequestPatterns,
@@ -775,8 +808,12 @@ function observableEffects(options: {
   before: PageStateDigest;
   after: PageStateDigest;
   triggerFocus: string;
-  baselineRequests: ReadonlySet<string>;
-  postActionRequests: readonly string[];
+  postActionRequests: ReadonlyArray<{
+    url: string;
+    method: string;
+    resourceType: string;
+    sequence: number;
+  }>;
   ignoreRequestPatterns: readonly string[];
   dialogObserved: boolean;
   downloadObserved: boolean;
@@ -791,11 +828,15 @@ function observableEffects(options: {
   )
     effects.push({ kind: "dom-mutation" });
   const request = options.postActionRequests.find(
-    (url) =>
-      !options.baselineRequests.has(url) &&
-      !matchesAny(url, options.ignoreRequestPatterns),
+    (candidate) =>
+      !matchesAny(candidate.url, options.ignoreRequestPatterns) &&
+      candidate.resourceType !== "eventsource",
   );
-  if (request) effects.push({ kind: "request", detail: request });
+  if (request)
+    effects.push({
+      kind: "request",
+      detail: `${request.method} ${request.url} #${request.sequence}`,
+    });
   if (options.dialogObserved) effects.push({ kind: "dialog" });
   if (options.downloadObserved) effects.push({ kind: "download" });
   if (options.popupObserved) effects.push({ kind: "popup" });

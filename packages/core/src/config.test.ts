@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { loadConfig, normalizeTarget, WalkdownError } from "./index.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { loadConfig, normalizeTarget, redactText, redactValue, WalkdownError } from "./index.js";
 
 describe("configuration", () => {
+  const directories: string[] = [];
+  afterEach(async () => {
+    await Promise.all(directories.splice(0).map((path) => rm(path, { recursive: true, force: true })));
+  });
   it("applies CLI values after environment values", () => {
     expect(
       loadConfig({
@@ -24,7 +31,8 @@ describe("configuration", () => {
       ignoreMessagePatterns: [],
     });
     expect(config.checks.interaction.allowButtonClicks).toBe(false);
-    expect(config.browser.screenshot).toBe(true);
+    expect(config.browser.screenshot).toBe(false);
+    expect(config.browser.trace).toBe(false);
     expect(config.baseline).toEqual({
       path: "baseline.json",
       failOn: ["error", "blocking"],
@@ -70,5 +78,29 @@ describe("configuration", () => {
     expect(() => normalizeTarget("file:///tmp/app")).toThrow(
       "Unsupported target protocol",
     );
+  });
+  it("rejects explicit missing config paths and credential-bearing targets", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "walkdown-config-"));
+    directories.push(directory);
+    expect(() =>
+      loadConfig({ cwd: directory, configPath: "missing.yaml" }),
+    ).toThrow("does not exist");
+    expect(() => normalizeTarget("https://user:password@example.test/")).toThrow(
+      "embedded credentials",
+    );
+  });
+  it("redacts URL userinfo, bearer credentials, JWTs, cookies, and nested secret keys", () => {
+    const token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.signature";
+    const text = redactText(
+      `https://user:password@example.test/?token=leak Authorization: Bearer ${token} cookie=session-value`,
+    );
+    expect(text).not.toContain("password");
+    expect(text).not.toContain("leak");
+    expect(text).not.toContain(token);
+    expect(text).not.toContain("session-value");
+    expect(redactValue({ Authorization: "secret", nested: { apiKey: "secret" } })).toEqual({
+      Authorization: "[REDACTED]",
+      nested: { apiKey: "[REDACTED]" },
+    });
   });
 });

@@ -172,7 +172,13 @@ export interface CandidateAction {
   risk: ActionRisk;
   reason: string;
   destination?: string;
-  outcome: "queued" | "skipped" | "budget-exhausted";
+  /** Scheduling/result ledger. A safe control is never reported as skipped once probed. */
+  outcome:
+    | "queued"
+    | "skipped"
+    | "budget-exhausted"
+    | "executed"
+    | "inconclusive";
 }
 
 export interface RouteNode {
@@ -182,6 +188,12 @@ export interface RouteNode {
   stateSignature: string;
   elements: ElementRef[];
   actions: CandidateAction[];
+  navigationStatus?:
+    | "visited"
+    | "http-error"
+    | "navigation-failed"
+    | "timed-out"
+    | "cancelled";
 }
 
 export interface CoverageSummary {
@@ -191,6 +203,11 @@ export interface CoverageSummary {
   pendingRoutes: string[];
   skippedActions: number;
   stopReasons: string[];
+  skippedByPolicy?: number;
+  budgetExhausted?: number;
+  attemptedActions?: number;
+  executedActions?: number;
+  inconclusiveActions?: number;
 }
 
 export interface AppGraph {
@@ -414,6 +431,11 @@ export interface RunResult {
   summary: RunSummary;
   findings: PublishedFinding[];
   evidence: PublishedEvidenceRef[];
+  /** Every built-in rule evaluated by this run, including rules with zero findings. */
+  ruleManifest?: Record<
+    string,
+    { version: string; enabled: boolean; outcome: "completed" | "skipped" }
+  >;
   comparison?: ComparisonResult;
 }
 

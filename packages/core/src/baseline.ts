@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { z } from "zod";
-import { redactText } from "./artifact-writer.js";
+import { redactText, redactValue } from "./artifact-writer.js";
 import type {
   AppGraph,
   Baseline,
@@ -16,8 +16,10 @@ import type {
   Suppression,
   VerificationResult,
 } from "./contracts.js";
+import type { BehaviorCheckResult } from "./behavior-checker.js";
 import { RULE_IDS, SCHEMA_VERSION } from "./contracts.js";
 import { WalkdownError } from "./errors.js";
+import { assertSupportedSchema, validateRunResult } from "./contracts-validation.js";
 
 export const FINGERPRINT_VERSION = 1;
 export const BASELINE_VERSION = 1 as const;
@@ -124,9 +126,7 @@ export function createBaseline(
     updatedAt: now,
     sourceRunId: result.run.runId,
     fingerprintVersion: FINGERPRINT_VERSION,
-    ruleVersions: Object.fromEntries(
-      entries.map((entry) => [entry.ruleId, entry.ruleVersion]),
-    ),
+    ruleVersions: ruleVersionsFromResult(result),
     entries: entries.sort(compareEntries),
     suppressions: sanitizeSuppressions(
       options.suppressions ?? options.previous?.suppressions ?? [],
@@ -286,6 +286,7 @@ export async function readBaseline(filePath: string): Promise<Baseline> {
       error,
     );
   }
+  assertSupportedSchema(value, "Baseline");
   const parsed = baselineSchema.safeParse(value);
   if (!parsed.success)
     throw new WalkdownError(
@@ -300,7 +301,7 @@ export async function writeBaseline(
   filePath: string,
   baseline: Baseline,
 ): Promise<void> {
-  await writeJsonAtomic(filePath, baseline);
+  await writeJsonAtomic(filePath, redactValue(baseline));
 }
 
 export async function writeVerificationResult(
@@ -308,7 +309,7 @@ export async function writeVerificationResult(
   result: VerificationResult,
 ): Promise<string> {
   const filePath = join(runDirectory, "verification.json");
-  await writeJsonAtomic(filePath, result);
+  await writeJsonAtomic(filePath, redactValue(result));
   return filePath;
 }
 
@@ -317,6 +318,7 @@ export function evaluateWalkdownVerification(options: {
   sourceRunId: string;
   verificationResult: RunResult;
   appGraph: AppGraph;
+  behavior?: BehaviorCheckResult;
   executor?: VerificationResult["executor"];
 }): VerificationResult {
   const route =
@@ -336,11 +338,24 @@ export function evaluateWalkdownVerification(options: {
   const repeated = options.verificationResult.findings.find(
     (finding) => finding.fingerprint === options.sourceFinding.fingerprint,
   );
+  const expectedAction = options.sourceFinding.verification.action;
+  const focusedAttempt = expectedAction
+    ? options.behavior?.attempts.find(
+        (attempt) =>
+          attempt.routeUrl === route &&
+          attempt.element.role === expectedElement?.role &&
+          attempt.element.name === expectedElement?.name &&
+          attempt.element.context === expectedElement?.context,
+      )
+    : undefined;
+  const actionWasConclusive =
+    !expectedAction ||
+    (focusedAttempt !== undefined && focusedAttempt.outcome !== "inconclusive");
   return {
     schemaVersion: SCHEMA_VERSION,
     fingerprint: options.sourceFinding.fingerprint,
     outcome:
-      !routeNode || !reachedElement
+      !routeNode || !reachedElement || !actionWasConclusive
         ? "inconclusive"
         : repeated
           ? "fail"
@@ -357,6 +372,8 @@ export function evaluateWalkdownVerification(options: {
       ? "The original route was not reached."
       : !reachedElement
         ? "The original semantic element was not reached."
+        : !actionWasConclusive
+          ? "The original action was not executed conclusively."
         : repeated
           ? "The original finding was reproduced."
           : "The original context was reached and the finding was absent.",
@@ -366,17 +383,14 @@ export function evaluateWalkdownVerification(options: {
 
 export async function readRunResult(filePath: string): Promise<RunResult> {
   try {
-    const value = JSON.parse(await readFile(filePath, "utf8")) as RunResult;
-    if (
-      value.schemaVersion !== SCHEMA_VERSION ||
-      !value.run?.runId ||
-      !Array.isArray(value.findings)
-    )
-      throw new Error("Unsupported result contract.");
-    return value;
+    const value: unknown = JSON.parse(await readFile(filePath, "utf8"));
+    assertSupportedSchema(value, "Run result");
+    validateRunResult(value);
+    return value as RunResult;
   } catch (error) {
+    if (error instanceof WalkdownError) throw error;
     throw new WalkdownError(
-      "FILESYSTEM_ERROR",
+      "INVALID_CONFIG",
       `Cannot read run result at ${filePath}.`,
       "Select a valid Walkdown result.json file.",
       error,
@@ -448,6 +462,13 @@ function classifyFinding(
 }
 
 function ruleVersionsFromResult(result: RunResult): Record<string, string> {
+  if (result.ruleManifest)
+    return Object.fromEntries(
+      Object.entries(result.ruleManifest).map(([ruleId, manifest]) => [
+        ruleId,
+        manifest.version,
+      ]),
+    );
   return Object.fromEntries(
     result.findings.map((finding) => [finding.ruleId, ruleVersion(finding)]),
   );

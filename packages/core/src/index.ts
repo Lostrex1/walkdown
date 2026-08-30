@@ -4,6 +4,7 @@ export * from "./behavior-checker.js";
 export * from "./browser-session.js";
 export * from "./config.js";
 export * from "./contracts.js";
+export * from "./contracts-validation.js";
 export * from "./errors.js";
 export * from "./network-classification.js";
 export * from "./reporters.js";

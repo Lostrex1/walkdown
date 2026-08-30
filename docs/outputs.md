@@ -30,7 +30,7 @@ walkdown scan https://app.example --format sarif
 walkdown scan https://app.example --format agent
 ```
 
-`--quiet` is an alias for canonical JSON output. `--verbose` expands the terminal finding list. Human output uses color only on a TTY and never when `NO_COLOR` is set. JSONL starts with run context, emits one event per finding, includes coverage, and always ends with a summary event. Markdown links to relative evidence. SARIF validates against the vendored official OASIS SARIF 2.1.0 schema and does not invent source-code locations. The agent view explicitly points back to `result.json`; it is a convenience prompt, not another source of truth.
+`--quiet` is an alias for canonical JSON output and may only be combined with `--format json`; invalid formats are rejected before any early exit such as `--print-config`. `--verbose` expands the terminal finding list. Human output uses color only on a TTY and never when `NO_COLOR` is set. JSONL starts with run context, emits one event per finding, includes coverage, and always ends with a summary event. Markdown links to relative evidence. SARIF validates against the vendored official OASIS SARIF 2.1.0 schema and does not invent source-code locations. The agent view explicitly points back to `result.json`; it is a convenience prompt, not another source of truth.
 
 All formats share exit semantics:
 

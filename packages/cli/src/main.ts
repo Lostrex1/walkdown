@@ -20,6 +20,7 @@ import {
   type RunResult,
   RunStore,
   readBaseline,
+  redactValue,
   readRunResult,
   renderRunResult,
   runBrowserSession,
@@ -101,6 +102,16 @@ function simpleOutputFormat(value: string | undefined): "human" | "json" {
   );
 }
 
+function validateScanOutput(options: CommonOptions): void {
+  const format = outputFormat(options.format);
+  if (options.quiet && options.format !== undefined && format !== "json")
+    throw new WalkdownError(
+      "INVALID_ARGUMENT",
+      "--quiet can only be combined with --format json.",
+      "Remove --format or use --format json with --quiet.",
+    );
+}
+
 function severityPolicy(value: string): Severity[] {
   const allowed: Severity[] = ["info", "warning", "error", "blocking"];
   const values = [...new Set(value.split(",").map((item) => item.trim()))];
@@ -122,6 +133,8 @@ function loadCommandConfig(options: CommonOptions): EffectiveConfig {
 }
 
 async function scan(targetInput: string, options: ScanOptions): Promise<void> {
+  // Validate even when output will be suppressed or config is only printed.
+  validateScanOutput(options);
   let config = loadConfig({
     configPath: options.config,
     cli: {
@@ -152,7 +165,7 @@ async function scan(targetInput: string, options: ScanOptions): Promise<void> {
     };
   const target = normalizeTarget(targetInput);
   if (options.printConfig) {
-    process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify(redactValue(config), null, 2)}\n`);
     return;
   }
   const baselinePath = resolveBaselinePath(config, options.baseline);
@@ -250,12 +263,20 @@ async function verifyCommand(
       maxActions: Math.max(1, sourceConfig.exploration.maxActions),
     },
   };
-  const execution = await performScan(route, focusedConfig);
+  const focus = sourceFinding.verification.element && sourceFinding.verification.action
+    ? {
+        routeUrl: route,
+        element: sourceFinding.verification.element,
+        action: sourceFinding.verification.action,
+      }
+    : undefined;
+  const execution = await performScan(route, focusedConfig, undefined, undefined, focus);
   const verification = evaluateWalkdownVerification({
     sourceFinding,
     sourceRunId: selected.result.run.runId,
     verificationResult: execution.result,
     appGraph: execution.browser.appGraph,
+    behavior: execution.browser.behavior,
     executor,
   });
   await writeVerificationResult(dirname(execution.filePath), verification);
@@ -269,6 +290,7 @@ async function verifyCommand(
 }
 
 async function regressionCommand(options: RegressionOptions): Promise<void> {
+  validateScanOutput(options);
   const config = loadCommandConfig(options);
   const baselinePath = resolveBaselinePath(config, options.baseline);
   const baseline = await readBaseline(baselinePath);
@@ -285,6 +307,7 @@ async function performScan(
   config: EffectiveConfig,
   baseline?: Baseline,
   regression?: NonNullable<NonNullable<RunResult["comparison"]>["regression"]>,
+  focus?: Parameters<typeof runBrowserSession>[0]["focus"],
 ): Promise<{
   result: RunResult;
   filePath: string;
@@ -302,10 +325,17 @@ async function performScan(
         runDirectory: dirname(filePath),
         config,
         signal,
+        focus,
       });
       return "completed";
     },
   );
+  if (execution.run.status === "cancelled")
+    throw new WalkdownError(
+      "CANCELLED",
+      "Walkdown run was cancelled.",
+      "The run was cancelled and can be started again.",
+    );
   if (!browserResult)
     throw new Error("Browser session completed without a result.");
   const assembled = assembleRunResult({
@@ -373,6 +403,7 @@ program
 program.configureOutput({
   writeErr: (message) => process.stderr.write(message),
 });
+program.exitOverride();
 program
   .command("scan <url>")
   .description("Scan a target and compare it with a baseline when present.")
@@ -395,7 +426,6 @@ program
   .option(
     "--format <format>",
     "Output format: human, json, jsonl, markdown, sarif, or agent",
-    "human",
   )
   .option("-q, --quiet", "Emit machine-readable JSON only")
   .option("--verbose", "Include full finding detail in human-readable output")
@@ -407,7 +437,7 @@ program
   .option("-o, --output-dir <path>", "Directory for local runs")
   .option("--from <path>", "Canonical result.json to accept")
   .option("--output <path>", "Baseline path relative to output-dir")
-  .option("--format <format>", "Output format: human or json", "human")
+  .option("--format <format>", "Output format: human or json")
   .option("-q, --quiet", "Emit baseline JSON only")
   .action(async (options: BaselineOptions) => baselineCommand(options));
 program
@@ -416,7 +446,7 @@ program
   .option("-c, --config <path>", "Path to walkdown YAML configuration")
   .option("-o, --output-dir <path>", "Directory for verification runs")
   .option("--from <path>", "Canonical result.json containing the finding")
-  .option("--format <format>", "Output format: human or json", "human")
+  .option("--format <format>", "Output format: human or json")
   .option("-q, --quiet", "Emit verification JSON only")
   .action(async (fingerprint: string, options: VerifyOptions) =>
     verifyCommand(fingerprint, options),
@@ -430,7 +460,6 @@ program
   .option(
     "--format <format>",
     "Output format: human, json, jsonl, markdown, sarif, or agent",
-    "human",
   )
   .option("-q, --quiet", "Emit machine-readable JSON only")
   .option("--verbose", "Include full finding detail in human-readable output")
@@ -444,9 +473,26 @@ try {
       `${error.code}: ${error.message}\n${error.suggestion}\n`,
     );
     process.exitCode =
-      error.code === "FILESYSTEM_ERROR"
-        ? ExitCode.infrastructure
-        : ExitCode.invocation;
+      error.code === "CANCELLED"
+        ? ExitCode.incomplete
+        : error.code === "FILESYSTEM_ERROR" ||
+            error.code === "BROWSER_UNAVAILABLE" ||
+            error.code === "NAVIGATION_FAILED"
+          ? ExitCode.infrastructure
+          : ExitCode.invocation;
+  } else if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof error.code === "string" &&
+    error.code.startsWith("commander.")
+  ) {
+    const commanderError = error as { code: string; exitCode: number; message: string };
+    if (commanderError.exitCode === 0) process.exitCode = ExitCode.success;
+    else {
+      process.stderr.write(commanderError.message);
+      process.exitCode = ExitCode.invocation;
+    }
   } else {
     process.stderr.write(
       `INFRASTRUCTURE_ERROR: ${error instanceof Error ? error.message : String(error)}\n`,

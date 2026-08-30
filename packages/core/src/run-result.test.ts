@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { Ajv } from "ajv";
@@ -19,6 +20,7 @@ import {
   toSarif,
 } from "./reporters.js";
 import { assembleRunResult } from "./run-result.js";
+import { validateRunResult } from "./contracts-validation.js";
 
 const fixturePath = resolve("packages/core/src/fixtures/run-result.v1.json");
 const resultSchemaPath = resolve("schemas/run-result.schema.json");
@@ -79,6 +81,21 @@ describe("RunResult v1", () => {
         ],
       }),
     ).toThrow("relative to the run");
+  });
+
+  it("rejects malformed public contracts instead of accepting partial JSON", () => {
+    const result = assembleRunResult({
+      run: nativeRun(), appGraph: graph(), findings: [], evidence: [],
+    });
+    expect(() => validateRunResult({ ...result, unexpected: true })).toThrow(
+      "Invalid run result",
+    );
+    expect(() => validateRunResult({ ...result, findings: [{}] })).toThrow(
+      "Invalid run result",
+    );
+    const schema = JSON.parse(readFileSync(resultSchemaPath, "utf8"));
+    const ajv = new Ajv({ strict: false, formats: { "date-time": true, uri: true } });
+    expect(ajv.validate(schema, result), JSON.stringify(ajv.errors)).toBe(true);
   });
 
   it("validates the golden external-provider fixture and official SARIF output", async () => {
