@@ -2,12 +2,22 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { loadConfig, normalizeTarget, redactText, redactValue, WalkdownError } from "./index.js";
+import {
+  loadConfig,
+  normalizeTarget,
+  redactText,
+  redactValue,
+  WalkdownError,
+} from "./index.js";
 
 describe("configuration", () => {
   const directories: string[] = [];
   afterEach(async () => {
-    await Promise.all(directories.splice(0).map((path) => rm(path, { recursive: true, force: true })));
+    await Promise.all(
+      directories
+        .splice(0)
+        .map((path) => rm(path, { recursive: true, force: true })),
+    );
   });
   it("applies CLI values after environment values", () => {
     expect(
@@ -85,9 +95,9 @@ describe("configuration", () => {
     expect(() =>
       loadConfig({ cwd: directory, configPath: "missing.yaml" }),
     ).toThrow("does not exist");
-    expect(() => normalizeTarget("https://user:password@example.test/")).toThrow(
-      "embedded credentials",
-    );
+    expect(() =>
+      normalizeTarget("https://user:password@example.test/"),
+    ).toThrow("embedded credentials");
   });
   it("redacts URL userinfo, bearer credentials, JWTs, cookies, and nested secret keys", () => {
     const token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.signature";
@@ -98,7 +108,9 @@ describe("configuration", () => {
     expect(text).not.toContain("leak");
     expect(text).not.toContain(token);
     expect(text).not.toContain("session-value");
-    expect(redactValue({ Authorization: "secret", nested: { apiKey: "secret" } })).toEqual({
+    expect(
+      redactValue({ Authorization: "secret", nested: { apiKey: "secret" } }),
+    ).toEqual({
       Authorization: "[REDACTED]",
       nested: { apiKey: "[REDACTED]" },
     });

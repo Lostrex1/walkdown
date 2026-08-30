@@ -3,6 +3,7 @@ import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { z } from "zod";
 import { redactText, redactValue } from "./artifact-writer.js";
+import type { BehaviorCheckResult } from "./behavior-checker.js";
 import type {
   AppGraph,
   Baseline,
@@ -16,10 +17,12 @@ import type {
   Suppression,
   VerificationResult,
 } from "./contracts.js";
-import type { BehaviorCheckResult } from "./behavior-checker.js";
 import { RULE_IDS, SCHEMA_VERSION } from "./contracts.js";
+import {
+  assertSupportedSchema,
+  validateRunResult,
+} from "./contracts-validation.js";
 import { WalkdownError } from "./errors.js";
-import { assertSupportedSchema, validateRunResult } from "./contracts-validation.js";
 
 export const FINGERPRINT_VERSION = 1;
 export const BASELINE_VERSION = 1 as const;
@@ -374,9 +377,9 @@ export function evaluateWalkdownVerification(options: {
         ? "The original semantic element was not reached."
         : !actionWasConclusive
           ? "The original action was not executed conclusively."
-        : repeated
-          ? "The original finding was reproduced."
-          : "The original context was reached and the finding was absent.",
+          : repeated
+            ? "The original finding was reproduced."
+            : "The original context was reached and the finding was absent.",
     finding: repeated,
   };
 }

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { rename, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { redactValue } from "./artifact-writer.js";
+import { RULE_VERSIONS } from "./baseline.js";
 import type {
   AppGraph,
   CandidateAction,
@@ -18,15 +19,13 @@ import type {
   Severity,
 } from "./contracts.js";
 import { RULE_IDS, SCHEMA_VERSION } from "./contracts.js";
+import { validateRunResult } from "./contracts-validation.js";
 import {
   renderAgentPrompt,
   renderJsonl,
   renderMarkdown,
   toSarif,
 } from "./reporters.js";
-import { RULE_VERSIONS } from "./baseline.js";
-import { validateRunResult } from "./contracts-validation.js";
-
 
 interface Guidance {
   confidence: FindingConfidence;

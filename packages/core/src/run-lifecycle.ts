@@ -45,11 +45,7 @@ export async function executeRun(
     return { run, filePath: created.filePath };
   } catch (error) {
     const status = interrupted ? "cancelled" : "incomplete";
-    const run = await store.finish(
-      created.filePath,
-      created.run,
-      status,
-    );
+    const run = await store.finish(created.filePath, created.run, status);
     if (interrupted) return { run, filePath: created.filePath };
     throw error;
   } finally {

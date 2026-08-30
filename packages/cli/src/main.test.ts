@@ -234,7 +234,13 @@ describe("walkdown CLI", () => {
     // Equivalent to the agent applying the repair after receiving the finding.
     defectPresent = false;
     const verification = await execFile(process.execPath, [
-      cliPath, "verify", fingerprint, "--output-dir", directory, "--format", "json",
+      cliPath,
+      "verify",
+      fingerprint,
+      "--output-dir",
+      directory,
+      "--format",
+      "json",
     ]);
     expect(JSON.parse(verification.stdout)).toMatchObject({
       fingerprint,

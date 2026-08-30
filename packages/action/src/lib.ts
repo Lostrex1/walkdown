@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import { platform } from "node:os";
 import { readdir, stat } from "node:fs/promises";
+import { platform } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 
@@ -192,7 +192,7 @@ export function renderActionSummary(result: ActionResult): string {
     .slice(0, 10)
     .map(
       (finding) =>
-      `- **${finding.severity}** \`${finding.ruleId}\` on \`${redactUrl(finding.route)}\`: ${finding.message}`,
+        `- **${finding.severity}** \`${finding.ruleId}\` on \`${redactUrl(finding.route)}\`: ${finding.message}`,
     );
   const actionLedger =
     result.coverage.attemptedActions === undefined

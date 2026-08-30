@@ -74,7 +74,11 @@ export async function exploreApplication(options: {
       const cancelled = options.signal.aborted;
       const timedOut = error instanceof Error && /timeout/i.test(error.message);
       stopReasons.push(
-        cancelled ? "cancelled" : timedOut ? "navigation-timeout" : "navigation-failed",
+        cancelled
+          ? "cancelled"
+          : timedOut
+            ? "navigation-timeout"
+            : "navigation-failed",
       );
       routes.push({
         url: current.url,

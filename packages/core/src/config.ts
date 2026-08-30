@@ -352,8 +352,14 @@ export function validateEffectiveConfigSnapshot(value: unknown): void {
     );
   const candidate = structuredClone(value) as Record<string, unknown>;
   const checks = candidate.checks as Record<string, unknown> | undefined;
-  const rules = checks?.rules as Record<string, Record<string, unknown>> | undefined;
-  if (!rules || Object.keys(rules).length !== RULE_IDS.length || RULE_IDS.some((id) => !(id in rules)))
+  const rules = checks?.rules as
+    | Record<string, Record<string, unknown>>
+    | undefined;
+  if (
+    !rules ||
+    Object.keys(rules).length !== RULE_IDS.length ||
+    RULE_IDS.some((id) => !(id in rules))
+  )
     throw new WalkdownError(
       "INVALID_CONFIG",
       "Effective configuration has an incomplete rule set.",

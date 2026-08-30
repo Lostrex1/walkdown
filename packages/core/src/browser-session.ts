@@ -41,7 +41,10 @@ export async function runBrowserSession(options: {
   signal: AbortSignal;
   focus?: {
     routeUrl: string;
-    element: Pick<import("./contracts.js").ElementRef, "role" | "name" | "context">;
+    element: Pick<
+      import("./contracts.js").ElementRef,
+      "role" | "name" | "context"
+    >;
     action: Pick<import("./contracts.js").CandidateAction, "kind" | "risk">;
   };
 }): Promise<BrowserSessionResult> {

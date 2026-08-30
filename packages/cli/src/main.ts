@@ -20,8 +20,8 @@ import {
   type RunResult,
   RunStore,
   readBaseline,
-  redactValue,
   readRunResult,
+  redactValue,
   renderRunResult,
   runBrowserSession,
   type Severity,
@@ -263,14 +263,21 @@ async function verifyCommand(
       maxActions: Math.max(1, sourceConfig.exploration.maxActions),
     },
   };
-  const focus = sourceFinding.verification.element && sourceFinding.verification.action
-    ? {
-        routeUrl: route,
-        element: sourceFinding.verification.element,
-        action: sourceFinding.verification.action,
-      }
-    : undefined;
-  const execution = await performScan(route, focusedConfig, undefined, undefined, focus);
+  const focus =
+    sourceFinding.verification.element && sourceFinding.verification.action
+      ? {
+          routeUrl: route,
+          element: sourceFinding.verification.element,
+          action: sourceFinding.verification.action,
+        }
+      : undefined;
+  const execution = await performScan(
+    route,
+    focusedConfig,
+    undefined,
+    undefined,
+    focus,
+  );
   const verification = evaluateWalkdownVerification({
     sourceFinding,
     sourceRunId: selected.result.run.runId,
@@ -487,7 +494,11 @@ try {
     typeof error.code === "string" &&
     error.code.startsWith("commander.")
   ) {
-    const commanderError = error as { code: string; exitCode: number; message: string };
+    const commanderError = error as {
+      code: string;
+      exitCode: number;
+      message: string;
+    };
     if (commanderError.exitCode === 0) process.exitCode = ExitCode.success;
     else {
       process.stderr.write(commanderError.message);
